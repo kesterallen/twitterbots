@@ -1,11 +1,10 @@
 
 import datetime
 import os
-from tweetbot_lib import BotTweet, tweetify_text, get_today_index
+from tweetbot_lib import BotTweet, tweetify_text, get_today_index, get_keys
 
 START_DATE = datetime.datetime(2016, 10, 4, 5, 0, 0) # 5AM 4-Oct-2016
 LYRICS_FILE = 'txt/prince_lyrics.txt'
-
 KEY_FILE = 'keys.txt'
 
 def main():
