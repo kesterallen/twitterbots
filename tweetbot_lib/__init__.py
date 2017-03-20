@@ -44,7 +44,12 @@ class BotTweet(object):
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
         photo = open(image_fn)
         response = twitter.upload_media(media=photo)
-        return twitter.update_status(status=self.str, media_ids=[response['media_id']])
+        return twitter.update_status(
+            status=self.str, media_ids=[response['media_id']])
+
+def get_tweet_file(filename):
+    """ Assume the text file is in ../txt """
+    return os.path.join(os.path.dirname(__file__), '../txt/', filename)
 
 def tweetify_text(textfile):
     """
@@ -85,8 +90,9 @@ def get_today_tweet(tweets, then):
     today_tweet = tweets[today_index]
     return today_tweet
 
-def get_keys(keyfile, bot_filename):
-    keyfile_full = os.path.join(os.path.dirname(__file__), '..', keyfile)
+def get_keys(bot_filename, keyfile="keys.txt"):
+    keyfile_full = os.path.join(
+        os.path.dirname(__file__), '..', keyfile)
 
     auth_keys = {}
     with open(keyfile_full) as keys_fh:

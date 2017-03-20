@@ -10,7 +10,7 @@ from tweetbot_lib import get_keys
 
 KEY_FILE = 'keys.txt'
 
-keys = get_keys(KEY_FILE, __file__)
+keys = get_keys(__file__)
 
 replies = [
     'Honk honk honk',

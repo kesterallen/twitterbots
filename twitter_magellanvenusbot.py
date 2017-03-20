@@ -63,7 +63,7 @@ def main():
     zoom = random.uniform(1.0, 3.0)
     lng, lat, url, image_fn = get_random_venus_image(width, height, zoom)
 
-    keys = get_keys(KEY_FILE, __file__)
+    keys = get_keys(__file__)
     twitter = BotTweet()
     twitter.words = [
         "Venus, latitude: %.5f longitude: %.5f, %s" % (lat, lng, url)
