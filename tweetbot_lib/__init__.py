@@ -1,10 +1,7 @@
 
 import datetime
 import inspect
-from PIL import Image, ImageOps
-import math
 import os
-import random
 from twython import Twython
 
 MAX_TWEET_LEN = 140

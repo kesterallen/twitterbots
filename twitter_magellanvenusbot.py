@@ -6,6 +6,8 @@ import random
 from tweetbot_lib import BotTweet
 import urllib
 
+# Thanks to Trent Hare of the USGS for pointing this service out:
+#
 IMG_TMPL = "".join([
     'https://planetarymaps.usgs.gov/cgi-bin/mapserv?',
         'map=/maps/venus/venus_simp_cyl.map&',
@@ -64,6 +66,7 @@ def main():
     width = 1920
     height = 1080
     lat_box_side = random.uniform(1.0, 5.0) # degrees
+    box_width_km = 105.6 * lat_box_side # km
 
     lng, lat, url, image_fn = get_random_venus_image(width, height, lat_box_side)
 
@@ -71,7 +74,7 @@ def main():
     twitter.words = [
         "Venus, latitude: %.2f " % lat,
         "longitude: %.2f, " % lng,
-        "%.1f degrees latitude width. %s" % (lat_box_side, url)
+        "%.1f km wide. %s" % (box_width_km, url)
     ]
     twitter.publish_with_image(image_fn)
 
