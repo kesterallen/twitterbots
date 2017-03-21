@@ -3,7 +3,7 @@ import requests
 import sys
 import time
 from twython import TwythonStreamer
-from tweetbot_lib import get_keys
+from tweetbot_lib import BotTweet
 
 class TweetStreamer(TwythonStreamer):
     def on_success(self, data):
@@ -21,7 +21,6 @@ class TweetStreamer(TwythonStreamer):
         print "in on_timeout"
         print "timeout"
 
-keys = get_keys(__file__)
 
 if len(sys.argv) > 1:
     track = ",".join(sys.argv[1:])
@@ -32,6 +31,7 @@ print "Tracking '%s'" % track
 
 while True:
     try:
+        keys = BotTweet().get_keys()
         streamer = TweetStreamer(keys[0], keys[1], keys[2], keys[3])
         streamer.statuses.filter(track=track)
     except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError):

@@ -3,10 +3,8 @@ import math
 import os
 from PIL import Image, ImageOps
 import random
-from tweetbot_lib import BotTweet, get_keys
+from tweetbot_lib import BotTweet
 import urllib
-
-KEY_FILE = 'keys.txt'
 
 IMG_TMPL = "".join([
     'https://planetarymaps.usgs.gov/cgi-bin/mapserv?',
@@ -75,8 +73,7 @@ def main():
         "longitude: %.2f, " % lng,
         "%.1f degrees latitude width. %s" % (lat_box_side, url)
     ]
-    keys = get_keys(__file__)
-    twitter.publish_with_image(image_fn, *keys)
+    twitter.publish_with_image(image_fn)
 
     os.remove(image_fn)
 

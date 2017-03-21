@@ -6,11 +6,9 @@ import datetime
 import time
 from twython import TwythonStreamer, Twython
 from twython.exceptions import TwythonError
-from tweetbot_lib import get_keys
+from tweetbot_lib import BotTweet
 
-KEY_FILE = 'keys.txt'
-
-keys = get_keys(__file__)
+keys = BotTweet().get_keys()
 
 replies = [
     'Honk honk honk',
@@ -66,15 +64,19 @@ class HarpoStreamer(TwythonStreamer):
         print status_code, "timeout", data
         time.sleep(1)
 
-if len(sys.argv) > 1:
-    track = ",".join(sys.argv[1:])
-else:
-    track = "harpo marx,harpomarx,#harpomarx"
+def main():
+    if len(sys.argv) > 1:
+        track = ",".join(sys.argv[1:])
+    else:
+        track = "harpo marx,harpomarx,#harpomarx"
 
-while True:
-    try:
-        streamer = HarpoStreamer(keys[0], keys[1], keys[2], keys[3])
-        streamer.statuses.filter(track=track)
-    except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError):
-        print "restarting"
-        time.sleep(10)
+    while True:
+        try:
+            streamer = HarpoStreamer(keys[0], keys[1], keys[2], keys[3])
+            streamer.statuses.filter(track=track)
+        except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError):
+            print "restarting"
+            time.sleep(10)
+
+if __name__ == '__main__':
+    main()

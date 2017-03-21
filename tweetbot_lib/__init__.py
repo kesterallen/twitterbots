@@ -1,5 +1,6 @@
 
 import datetime
+import inspect
 from PIL import Image, ImageOps
 import math
 import os
@@ -10,7 +11,12 @@ MAX_TWEET_LEN = 140
 
 class BotTweet(object):
 
-    def __init__(self, word=None):
+    def __init__(self, word=None, bot_filename=None):
+        if bot_filename is None:
+            fullname = inspect.stack()[-1][1] #original calling script's filename
+            self.bot_filename = os.path.basename(fullname)
+        else:
+            self.bot_filename = bot_filename
         self.words = [] if word is None else [word]
 
     def pop(self):
@@ -34,13 +40,28 @@ class BotTweet(object):
     def __repr__(self):
         return " ".join(self.words)
 
-    def publish(self, *keys):
-        app_key, app_secret, oauth_token, oauth_token_secret = keys
+    def get_keys(self, keyfile="../keys.txt"):
+        """Assume the keys file is ../keys.txt"""
+        keyfile_full = os.path.join(
+            os.path.dirname(__file__), keyfile)
+
+        auth_keys = {}
+        with open(keyfile_full) as keys_fh:
+            for row in keys_fh.readlines():
+                name, value = row.strip().split('=')
+                auth_keys[name] = value
+        keynames = ['APP_KEY', 'APP_SEC', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SEC']
+        key_prefix = os.path.basename(self.bot_filename)
+        keys = [auth_keys["%s%s" % (key_prefix, kn)] for kn in keynames]
+        return keys
+
+    def publish(self):
+        app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
         return twitter.update_status(status=self.str)
 
-    def publish_with_image(self, image_fn, *keys):
-        app_key, app_secret, oauth_token, oauth_token_secret = keys
+    def publish_with_image(self, image_fn):
+        app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
         photo = open(image_fn)
         response = twitter.upload_media(media=photo)
@@ -48,7 +69,7 @@ class BotTweet(object):
             status=self.str, media_ids=[response['media_id']])
 
 def get_tweet_file(filename):
-    """ Assume the text file is in ../txt """
+    """ Assume the text file is in ../txt/ """
     return os.path.join(os.path.dirname(__file__), '../txt/', filename)
 
 def tweetify_text(textfile):
@@ -90,16 +111,3 @@ def get_today_tweet(tweets, then):
     today_tweet = tweets[today_index]
     return today_tweet
 
-def get_keys(bot_filename, keyfile="keys.txt"):
-    keyfile_full = os.path.join(
-        os.path.dirname(__file__), '..', keyfile)
-
-    auth_keys = {}
-    with open(keyfile_full) as keys_fh:
-        for row in keys_fh.readlines():
-            name, value = row.strip().split('=')
-            auth_keys[name] = value
-    keynames = ['APP_KEY', 'APP_SEC', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SEC']
-    key_prefix = os.path.basename(bot_filename)
-    keys = [auth_keys["%s%s" % (key_prefix, kn)] for kn in keynames]
-    return keys
