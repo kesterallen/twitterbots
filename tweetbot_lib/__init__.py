@@ -111,3 +111,9 @@ def get_today_tweet(tweets, then):
     today_tweet = tweets[today_index]
     return today_tweet
 
+def parse_text_and_get_today_tweet(textfile, start_date):
+    tweetfile = get_tweet_file(textfile)
+    tweets = tweetify_text(tweetfile)
+    today_index = get_today_index(len(tweets), start_date)
+    today_tweet = tweets[today_index]
+    return today_tweet

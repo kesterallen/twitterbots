@@ -1,17 +1,12 @@
 
 import datetime
 import os
-from tweetbot_lib import (
-    BotTweet, tweetify_text, get_today_index, get_tweet_file)
+from tweetbot_lib import parse_text_and_get_today_tweet
 
 START_DATE = datetime.datetime(2016, 11, 28, 5, 0, 0) # 5AM 28-Nov-2016
 
 def main():
-    tweetfile = get_tweet_file('second_inaugural.txt')
-    tweets = tweetify_text(tweetfile)
-    today_index = get_today_index(len(tweets), START_DATE)
-    today_tweet = tweets[today_index]
-
+    today_tweet = parse_text_and_get_today_tweet('second_inaugural.txt', START_DATE)
     today_tweet.publish()
 
 if __name__ == '__main__':
