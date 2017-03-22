@@ -25,6 +25,7 @@ IMG_TMPL = "".join([
 ])
 
 def get_bounding_box(lat_box_side, aspect_ratio):
+    """Get a bounding box that is lat_box_side high and within bounds."""
     is_bad_box = True
     while is_bad_box:
         # Math from http://mathworld.wolfram.com/SpherePointPicking.html
@@ -52,9 +53,9 @@ def get_bounding_box(lat_box_side, aspect_ratio):
         'box_width_km': box_width_km
     })
 
-def get_random_venus_image(width, height, lat_box_side):
-    # Get a subimage without too many black pixels:
-    #
+def get_random_venus_image(width, height, lat_box_side, max_pct_black=0.5):
+    """Get a subimage without too many black pixels"""
+
     # TODO: this should probably be a stringio
     aspect_ratio = float(width) / float(height)
     image_fn = "tmpvenus.jpg"
@@ -65,7 +66,8 @@ def get_random_venus_image(width, height, lat_box_side):
         url = IMG_TMPL % (str_box, width, height)
         urllib.urlretrieve(url, image_fn)
         image = Image.open(image_fn)
-        image_too_dark = image.histogram()[0] > sum(image.histogram()[1:])
+        pct_black = float(image.histogram()[0]) / float(sum(image.histogram()))
+        image_too_dark = pct_black > max_pct_black
 
     image = ImageOps.autocontrast(image)
     image.save(image_fn)
