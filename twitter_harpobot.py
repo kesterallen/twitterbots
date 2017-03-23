@@ -1,8 +1,9 @@
 
-import requests
-import sys
-import random
 import datetime
+import random
+import requests
+import socket
+import sys
 import time
 from twython import TwythonStreamer, Twython
 from twython.exceptions import TwythonError
@@ -74,9 +75,13 @@ def main():
         try:
             streamer = HarpoStreamer(keys[0], keys[1], keys[2], keys[3])
             streamer.statuses.filter(track=track)
-        except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError):
-            print "restarting"
-            time.sleep(10)
+        except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ChunkedEncodingError,
+                socket.error,
+            ) as err:
+            print "restarting ", err
+            time.sleep(60)
 
 if __name__ == '__main__':
     main()

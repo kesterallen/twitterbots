@@ -29,11 +29,15 @@ else:
 
 print "Tracking '%s'" % track
 
+keys = BotTweet().get_keys()
 while True:
     try:
-        keys = BotTweet().get_keys()
         streamer = TweetStreamer(keys[0], keys[1], keys[2], keys[3])
         streamer.statuses.filter(track=track)
-    except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError):
-        print "restarting"
-        time.sleep(10)
+    except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            socket.error,
+        ) as err:
+        print "restarting ", err
+        time.sleep(60)
