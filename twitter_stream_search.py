@@ -1,5 +1,6 @@
 
 import requests
+import socket
 import sys
 import time
 from twython import TwythonStreamer
