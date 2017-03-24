@@ -66,7 +66,10 @@ def get_random_venus_image(width, height, lat_box_side, max_pct_black=0.5):
         url = IMG_TMPL % (str_box, width, height)
         urllib.urlretrieve(url, image_fn)
         image = Image.open(image_fn)
-        pct_black = float(image.histogram()[0]) / float(sum(image.histogram()))
+
+        hist = image.histogram()
+        num_black = hist[0] + hist[256] + hist[512]
+        pct_black = float(num_black) / float(sum(image.histogram()))
         image_too_dark = pct_black > max_pct_black
 
     image = ImageOps.autocontrast(image)
@@ -81,12 +84,9 @@ def main():
 
     box, url, image_fn = get_random_venus_image(width, height, lat_box_side)
 
-    twitter = BotTweet()
-    twitter.words = [
-        "Venus, latitude: %.1f " % box.lat,
-        "longitude: %.1f, " % box.lng,
-        "%.1f km wide. %s" % (box.box_width_km, url)
-    ]
+    twitter = BotTweet(
+        "Venus, latitude: %.1f longitude: %.1f, %.1f km wide. %s" % 
+        (box.lat, box.lng, box.box_width_km, url))
     twitter.publish_with_image(image_fn)
 
     os.remove(image_fn)
