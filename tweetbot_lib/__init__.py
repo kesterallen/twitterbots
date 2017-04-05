@@ -60,8 +60,8 @@ class BotTweet(object):
     def publish_with_image(self, image_fn):
         app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
-        photo = open(image_fn)
-        response = twitter.upload_media(media=photo)
+        with open(image_fn) as photo:
+            response = twitter.upload_media(media=photo)
         return twitter.update_status(
             status=self.str, media_ids=[response['media_id']])
 

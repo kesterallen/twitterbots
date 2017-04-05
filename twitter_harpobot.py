@@ -1,5 +1,6 @@
 
 import datetime
+from pprint import pprint
 import random
 import requests
 import socket
@@ -51,18 +52,20 @@ class HarpoStreamer(TwythonStreamer):
                 old_reply = reply
                 while old_reply == reply:
                     reply = get_reply(data)
-                time.sleep(1)
+                time.sleep(10)
                 twitter.update_status(status=reply, in_reply_to_status_id=data['id'])
             time.sleep(3600)
     
     def on_error(self, status_code, data):
+        print datetime.datetime.now()
         print "in on_error"
-        print status_code, data
+        print status_code, "on_error", data
         time.sleep(1)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
-        print status_code, "timeout", data
+        print datetime.datetime.now()
+        print status_code, "on_timeout", data
         time.sleep(1)
 
 def main():

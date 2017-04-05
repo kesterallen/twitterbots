@@ -71,8 +71,11 @@ def get_random_venus_image(width, height, lat_box_side, max_pct_black=0.5):
         num_black = hist[0] + hist[256] + hist[512]
         pct_black = float(num_black) / float(sum(image.histogram()))
         image_too_dark = pct_black > max_pct_black
+        if pct_black < 0.1:
+            image_too_dark = True
+        print pct_black
 
-    image = ImageOps.autocontrast(image)
+    image = ImageOps.autocontrast(image=image, ignore=0)
     image.save(image_fn)
 
     return box, url, image_fn
@@ -80,7 +83,7 @@ def get_random_venus_image(width, height, lat_box_side, max_pct_black=0.5):
 def main():
     width = 1920
     height = 1080
-    lat_box_side = random.uniform(0.5, 5.0) # degrees
+    lat_box_side = random.uniform(0.1, 3.0) # degrees
 
     box, url, image_fn = get_random_venus_image(width, height, lat_box_side)
 
