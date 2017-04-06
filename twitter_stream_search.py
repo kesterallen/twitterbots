@@ -15,7 +15,7 @@ class TweetStreamer(TwythonStreamer):
     def on_error(self, status_code, data):
         print "in on_error"
         print status_code, data
-        time.sleep(1)
+        time.sleep(10)
         self.disconnect()
 
     def on_timeout(self, status_code, data):

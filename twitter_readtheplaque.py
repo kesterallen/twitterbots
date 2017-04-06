@@ -1,15 +1,11 @@
 
-import requests
 from tweetbot_lib import BotTweet
 
-set_featured_url = 'http://readtheplaque.com/jp'
+tweet_url = 'http://readtheplaque.com/tweet'
 
 def main():
-    resp = requests.get(set_featured_url)
-    text = "'%s' Always #readtheplaque http://readtheplaque.com/plaque/%s" % (
-        resp.json()['title'], resp.json()['title_url'])
-
-    twitter = BotTweet(text)
+    twitter = BotTweet()
+    twitter.download_tweet_text(tweet_url)
     twitter.publish()
 
 if __name__ == '__main__':

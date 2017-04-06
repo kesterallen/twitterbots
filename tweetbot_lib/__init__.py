@@ -2,6 +2,7 @@
 import datetime
 import inspect
 import os
+import requests
 from twython import Twython
 
 MAX_TWEET_LEN = 140
@@ -64,6 +65,11 @@ class BotTweet(object):
             response = twitter.upload_media(media=photo)
         return twitter.update_status(
             status=self.str, media_ids=[response['media_id']])
+
+    def download_tweet_text(self, tweet_generate_url):
+        resp = requests.get(tweet_generate_url)
+        text = resp.json()['tweet']
+        self.words = [text]
 
 def get_tweet_file(filename):
     """ Assume the text file is in ../txt/ """
