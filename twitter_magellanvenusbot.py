@@ -1,13 +1,15 @@
 
 import attrdict
 import math
+import numpy as np
 import os
 from PIL import Image, ImageOps
 import random
+from scipy import optimize
 from tweetbot_lib import BotTweet
 import urllib
 
-# Thanks to Trent Hare of the USGS for pointing this service out:
+# Thanks to Trent Hare of the USGS for this service:
 #
 IMG_TMPL = "".join([
     'https://planetarymaps.usgs.gov/cgi-bin/mapserv?',
@@ -53,6 +55,41 @@ def get_bounding_box(lat_box_side, aspect_ratio):
         'box_width_km': box_width_km
     })
 
+def _gauss(x, *p):
+    """ Define model function to be used to fit to the data. """
+    A, mu, sigma = p
+    return A * np.exp(-(x-mu)**2/(2.0*sigma**2))
+
+def _ignore(hist, offset=10, width=3.0):
+    """ 
+    Generate an ignore range that excludes everything based on a gaussian fit
+    to hist[offset:] (ignore first offset bins). Default ignore range is
+    everything outside +/- 3 std from the center of the gaussian fit.
+    """
+
+    # p0 is the initial guess for the fitting coefficients (A, mu, & sigma)
+    p_max = max(hist[offset:])
+    p_ctr = hist.index(p_max)
+    p_std = 20.0
+    p0 = [p_max, p_ctr, p_std]
+    coeff, var_matrix = optimize.curve_fit(_gauss, range(len(hist)), hist, p0=p0)
+
+    data_start = int(coeff[1] - width*coeff[2])
+
+    if data_start < 0 or data_start > 255:
+        data_start = 0
+    data_end = int(coeff[1] + width*coeff[2])
+    if data_end < 0 or data_end > 255:
+        data_end = 255
+    if data_end <= data_start:
+        data_start = 0
+        data_end = 255
+
+    ignore = range(0,data_start) + range(data_end,255)
+
+    return ignore
+
+
 def get_random_venus_image(width, height, lat_box_side, max_pct_black=0.5):
     """Get a subimage without too many black pixels"""
 
@@ -65,17 +102,17 @@ def get_random_venus_image(width, height, lat_box_side, max_pct_black=0.5):
         str_box = "%s,%s,%s,%s" % (box.lng, box.lat, box.lng_end, box.lat_end)
         url = IMG_TMPL % (str_box, width, height)
         urllib.urlretrieve(url, image_fn)
-        image = Image.open(image_fn)
 
+        image = Image.open(image_fn).convert('L')
         hist = image.histogram()
-        num_black = hist[0] + hist[256] + hist[512]
+
+        num_black = hist[0]
         pct_black = float(num_black) / float(sum(image.histogram()))
         image_too_dark = pct_black > max_pct_black
-        if pct_black < 0.1:
-            image_too_dark = True
-        print pct_black
 
-    image = ImageOps.autocontrast(image=image, ignore=0)
+    image.save("tmpraw.jpg")
+    ignore = _ignore(hist)
+    image = ImageOps.autocontrast(image, ignore=ignore)
     image.save(image_fn)
 
     return box, url, image_fn
