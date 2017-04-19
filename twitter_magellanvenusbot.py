@@ -36,9 +36,10 @@ def get_bounding_box(lat_box_side, aspect_ratio):
         lng = 360.0 * rand_u # Range: [0.0, 360.0]
         lat = math.acos(2.0 * rand_v - 1) * 180.0 / math.pi - 90.0 # Range: [-90.0, 90.0]
 
-        # Convert latitude to radans for the cos operation
+        # Adjust the lng (horizontal) size of the box by aspect ratio and
+        # the latitude (so high-latitude images look right):
         lat_rad = lat * math.pi / 180.0
-        lng_box_side = lat_box_side * math.cos(abs(lat_rad)) * aspect_ratio
+        lng_box_side = lat_box_side * aspect_ratio / math.cos(abs(lat_rad)) 
 
         lng_end = lng + lng_box_side
         lat_end = lat + lat_box_side
@@ -108,9 +109,9 @@ def get_random_venus_image(width, height, lat_box_side, max_pct_black=0.5):
 
         num_black = hist[0]
         pct_black = float(num_black) / float(sum(image.histogram()))
+        print pct_black, url
         image_too_dark = pct_black > max_pct_black
 
-    image.save("tmpraw.jpg")
     ignore = _ignore(hist)
     image = ImageOps.autocontrast(image, ignore=ignore)
     image.save(image_fn)
