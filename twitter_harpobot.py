@@ -35,6 +35,9 @@ replies = [
     '*offers you a lollipop*',
 ]
 
+def current_time():
+    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+
 def get_reply(data):
     reply = "@%s %s" % (data['user']['screen_name'], random.choice(replies))
     return reply
@@ -43,7 +46,7 @@ class HarpoStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
             reply = get_reply(data)
-            print datetime.datetime.now(), reply
+            print current_time(), reply
             twitter = Twython(keys[0], keys[1], keys[2], keys[3])
             try:
                 twitter.update_status(status=reply, in_reply_to_status_id=data['id'])
@@ -54,18 +57,15 @@ class HarpoStreamer(TwythonStreamer):
                     reply = get_reply(data)
                 time.sleep(10)
                 twitter.update_status(status=reply, in_reply_to_status_id=data['id'])
-            time.sleep(3600)
+            time.sleep(2700)
     
     def on_error(self, status_code, data):
-        print datetime.datetime.now()
-        print "in on_error"
-        print status_code, "on_error", data
+        print current_time(), "in on_error", status_code, "on_error", data
         time.sleep(1)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
-        print datetime.datetime.now()
-        print status_code, "on_timeout", data
+        print current_time(), status_code, "on_timeout", data
         time.sleep(1)
 
 def main():
@@ -83,7 +83,7 @@ def main():
                 requests.exceptions.ChunkedEncodingError,
                 socket.error,
             ) as err:
-            print "restarting ", err
+            print current_time(), "restarting ", err
             time.sleep(60)
 
 if __name__ == '__main__':
