@@ -19,12 +19,14 @@ PLANETS = AttrDict({
         'layers': 'MAGELLAN',
         'botname': 'venusbot',
         'lat_box_side_degrees': (0.1, 3.0),
+        'km_per_lat_deg': 105.6,
     }),
     'Mercury': AttrDict({
         'map': '/maps/mercury/mercury_simp_cyl.map',
         'layers':'MESSENGER_Color',
         'botname': 'mercurybot',
         'lat_box_side_degrees': (1.0, 20.0),
+        'km_per_lat_deg': 42.58,
     })
 })
 
@@ -46,7 +48,7 @@ IMG_URL_TMPL = "".join([
 ])
 
 class BoundingBox(object):
-    def __init__(self, lng, lat, lat_box_side, aspect_ratio):
+    def __init__(self, lng, lat, lat_box_side, aspect_ratio, km_per_lat_deg):
         self.lng = lng
         self.lat = lat
 
@@ -58,10 +60,11 @@ class BoundingBox(object):
         self.lng_end = lng + lng_box_side
         self.lat_end = lat + lat_box_side
 
+        self.km_per_lat_deg = km_per_lat_deg
+
     @property
-    def box_width_km(self):
-        # TODO: this is actually the height
-        return 105.6 * (self.lat_end - self.lat)
+    def box_height_km(self):
+        return self.km_per_lat_deg * (self.lat_end - self.lat)
 
     @property
     def is_bad(self):
@@ -74,10 +77,10 @@ class BoundingBox(object):
     @property
     def pretty_str(self):
         return "latitude: %.1f longitude: %.1f, %.1f km wide" % (
-            self.lat, self.lng, self.box_width_km)
+            self.lat, self.lng, self.box_height_km)
 
 
-def get_bounding_box(lat_box_side, aspect_ratio):
+def get_bounding_box(lat_box_side, aspect_ratio, km_per_lat_deg):
     """Get a bounding box that is lat_box_side high and within bounds."""
     is_bad_box = True
     while is_bad_box:
@@ -87,7 +90,7 @@ def get_bounding_box(lat_box_side, aspect_ratio):
         lng = 360.0 * rand_u # Range: [0.0, 360.0]
         lat = math.acos(2.0 * rand_v - 1) * 180.0 / math.pi - 90.0 # Range: [-90.0, 90.0]
 
-        box = BoundingBox(lng, lat, lat_box_side, aspect_ratio)
+        box = BoundingBox(lng, lat, lat_box_side, aspect_ratio, km_per_lat_deg)
         is_bad_box = box.is_bad
 
     return box
@@ -139,7 +142,7 @@ def get_random_planet_image(planet, width, height, lat_box_side, max_pct_black=0
     aspect_ratio = float(width) / float(height)
     image_too_dark = True
     while image_too_dark:
-        box = get_bounding_box(lat_box_side, aspect_ratio)
+        box = get_bounding_box(lat_box_side, aspect_ratio, planet_data.km_per_lat_deg)
         url = IMG_URL_TMPL.format(planet_data, box, width, height)
         urllib.urlretrieve(url, IMAGE_FN)
 
@@ -173,7 +176,7 @@ def main():
 
     if DEBUG:
         import ipdb; ipdb.set_trace()
-    text = "%s, %s" % (box.pretty_str, url)
+    text = "%s, %s, %s" % (planet_name, box.pretty_str, url)
     # TODO: add bot_filename arg here to distinguish keys
     twitter = BotTweet(word=text, bot_filename=PLANETS[planet_name]['botname'])
 
