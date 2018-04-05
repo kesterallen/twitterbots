@@ -12,6 +12,7 @@ import urllib
 
 DEBUG = False
 IMAGE_FN = "tmpplanet.jpg"
+GMAPS_STUB = 'https://www.google.com/maps/space/'
 
 PLANETS = AttrDict({
     'Venus': AttrDict({ 
@@ -20,6 +21,7 @@ PLANETS = AttrDict({
         'botname': 'venusbot',
         'lat_box_side_degrees': (0.1, 3.0),
         'km_per_lat_deg': 105.6,
+        'gmaps_url_tmpl': GMAPS_STUB + 'venus/@{0.lat_gmap},{0.lng_gmap},5z',
     }),
     'Mercury': AttrDict({
         'map': '/maps/mercury/mercury_simp_cyl.map',
@@ -27,6 +29,7 @@ PLANETS = AttrDict({
         'botname': 'mercurybot',
         'lat_box_side_degrees': (1.0, 20.0),
         'km_per_lat_deg': 42.58,
+        'gmaps_url_tmpl': GMAPS_STUB + 'mercury/@{0.lat_gmap},{0.lng_gmap},5z',
     })
 })
 
@@ -78,6 +81,15 @@ class BoundingBox(object):
     def pretty_str(self):
         return "latitude: %.1f longitude: %.1f, %.1f km wide" % (
             self.lat, self.lng, self.box_height_km)
+
+    @property
+    def lat_gmap(self):
+        return 0.5 * (self.lat + self.lat_end)
+
+    @property
+    def lng_gmap(self):
+        """Google Maps longitude runs from -180 to 180, not 0 to 360."""
+        return -180.0 + 0.5 * (self.lng + self.lng_end)
 
 
 def get_bounding_box(lat_box_side, aspect_ratio, km_per_lat_deg):
@@ -176,8 +188,8 @@ def main():
 
     if DEBUG:
         import ipdb; ipdb.set_trace()
+    gmaps_url = PLANETS[planet_name].gmaps_url_tmpl.format(box)
     text = "%s, %s, %s" % (planet_name, box.pretty_str, url)
-    # TODO: add bot_filename arg here to distinguish keys
     twitter = BotTweet(word=text, bot_filename=PLANETS[planet_name]['botname'])
 
     if not DEBUG:
