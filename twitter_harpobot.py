@@ -66,12 +66,12 @@ class HarpoStreamer(TwythonStreamer):
 
     def on_error(self, status_code, data):
         print current_time(), "in on_error", status_code, "on_error", data
-        time.sleep(1)
+        time.sleep(90)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
         print current_time(), status_code, "on_timeout", data
-        time.sleep(1)
+        time.sleep(90)
 
 def main():
     if len(sys.argv) > 1:

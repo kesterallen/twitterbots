@@ -1,4 +1,5 @@
 
+import datetime
 import requests
 import socket
 import sys
@@ -9,8 +10,8 @@ from tweetbot_lib import BotTweet
 class TweetStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
-            print data['user']['screen_name'], ':', data['text'].encode('utf-8'), "https://twitter.com/{0}/status/{1}".format(data['user']['screen_name'], data['id'])
-            print
+            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+            print now, data['user']['screen_name'], ':', data['text'].encode('utf-8'), "https://twitter.com/{0}/status/{1}".format(data['user']['screen_name'], data['id'])
     
     def on_error(self, status_code, data):
         print "in on_error"

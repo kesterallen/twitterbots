@@ -75,31 +75,44 @@ def get_tweet_file(filename):
     """ Assume the text file is in ../txt/ """
     return os.path.join(os.path.dirname(__file__), '../txt/', filename)
 
-def tweetify_text(textfile):
+def tweetify_text(textfile, use_lines=False):
     """
     Break the input string 'text' into 140-char-or-less BotTweet objects.
+    
+    If use_lines is True, make one tweet per line in the file; otherwise
     """
-    # Read file into 'words' list:
-    #
-    with open(textfile) as text_fh:
-        text = text_fh.read()
-    words = text.split()
-
-    tweet = BotTweet()
     tweets = []
-    # Break the text into tweet-sized chunks:
-    #
-    for word in words:
-        if tweet.is_too_long:
-            extra_word = tweet.pop()
-            tweets.append(tweet)
-            tweet = BotTweet(extra_word)
+    if use_lines:
+        # One line per tweet
+        with open(textfile) as text_fh:
+            lines = text_fh.readlines()
+            for line in lines:
+                if len(line) > MAX_TWEET_LEN:
+                    line = line[:140]
+                    print "trimming %s" % line
+                tweet = BotTweet(line)
+                tweets.append(tweet)
+    else:
+        # Read file into 'words' list:
+        #
+        with open(textfile) as text_fh:
+            text = text_fh.read()
+        words = text.split()
 
-        tweet.append(word)
+        tweet = BotTweet()
+        # Break the text into tweet-sized chunks:
+        #
+        for word in words:
+            if tweet.is_too_long:
+                extra_word = tweet.pop()
+                tweets.append(tweet)
+                tweet = BotTweet(extra_word)
 
-    # Get the last tweet:
-    #
-    tweets.append(tweet)
+            tweet.append(word)
+
+        # Get the last tweet:
+        #
+        tweets.append(tweet)
 
     return tweets
 
@@ -114,9 +127,9 @@ def get_today_tweet(tweets, then):
     today_tweet = tweets[today_index]
     return today_tweet
 
-def parse_text_and_get_today_tweet(textfile, start_date):
+def parse_text_and_get_today_tweet(textfile, start_date, use_lines=False):
     tweetfile = get_tweet_file(textfile)
-    tweets = tweetify_text(tweetfile)
+    tweets = tweetify_text(tweetfile, use_lines)
     today_index = get_today_index(len(tweets), start_date)
     today_tweet = tweets[today_index]
     return today_tweet
