@@ -36,7 +36,7 @@ class BotTweet(object):
         return " ".join(self.words)
 
     def __repr__(self):
-        return " ".join(self.words)
+        return self.str
 
     def get_keys(self, keyfile="../keys.txt"):
         """Assume the keys file is ../keys.txt"""
@@ -61,8 +61,8 @@ class BotTweet(object):
     def publish_with_image(self, image_fn):
         app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
-        with open(image_fn) as photo:
-            response = twitter.upload_media(media=photo)
+        with open(image_fn) as image:
+            response = twitter.upload_media(media=image)
         return twitter.update_status(
             status=self.str, media_ids=[response['media_id']])
 
@@ -88,7 +88,7 @@ def tweetify_text(textfile, use_lines=False):
             lines = text_fh.readlines()
             for line in lines:
                 if len(line) > MAX_TWEET_LEN:
-                    line = line[:140]
+                    line = line[:MAX_TWEET_LEN]
                     print "trimming %s" % line
                 tweet = BotTweet(line)
                 tweets.append(tweet)
@@ -130,6 +130,4 @@ def get_today_tweet(tweets, then):
 def parse_text_and_get_today_tweet(textfile, start_date, use_lines=False):
     tweetfile = get_tweet_file(textfile)
     tweets = tweetify_text(tweetfile, use_lines)
-    today_index = get_today_index(len(tweets), start_date)
-    today_tweet = tweets[today_index]
-    return today_tweet
+    return get_today_tweet(tweets, start_date)
