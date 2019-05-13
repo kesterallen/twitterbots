@@ -15,6 +15,7 @@ class BotTweet(object):
             self.bot_filename = os.path.basename(fullname)
         else:
             self.bot_filename = bot_filename
+
         self.words = [] if word is None else [word]
 
     def pop(self):
@@ -53,12 +54,15 @@ class BotTweet(object):
         keys = [auth_keys["%s%s" % (key_prefix, kn)] for kn in keynames]
         return keys
 
-    def publish(self):
+    def publish(self, debug=False):
         app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
-        return twitter.update_status(status=self.str)
+        if debug:
+            print(self.str)
+        else:
+            return twitter.update_status(status=self.str)
 
-    def publish_with_image(self, image_fn):
+    def publish_with_image(self, image_fn, debug=False):
         app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
         with open(image_fn) as image:
@@ -71,13 +75,13 @@ class BotTweet(object):
         text = resp.json()['tweet']
         self.words = [text]
 
-def get_tweet_file(filename):
+def get_tweet_filename(filename):
     """ Assume the text file is in ../txt/ """
     return os.path.join(os.path.dirname(__file__), '../txt/', filename)
 
 def tweetify_text(textfile, use_lines=False):
     """
-    Break the input string 'text' into 140-char-or-less BotTweet objects.
+    Break the input string 'text' into MAX_TWEET_LEN-char-or-less BotTweet objects.
     
     If use_lines is True, make one tweet per line in the file; otherwise
     """
@@ -89,7 +93,7 @@ def tweetify_text(textfile, use_lines=False):
             for line in lines:
                 if len(line) > MAX_TWEET_LEN:
                     line = line[:MAX_TWEET_LEN]
-                    print "trimming %s" % line
+                    print("trimming to {} chars: {}".format(MAX_TWEET_LEN, line))
                 tweet = BotTweet(line)
                 tweets.append(tweet)
     else:
@@ -128,6 +132,6 @@ def get_today_tweet(tweets, then):
     return today_tweet
 
 def parse_text_and_get_today_tweet(textfile, start_date, use_lines=False):
-    tweetfile = get_tweet_file(textfile)
+    tweetfile = get_tweet_filename(textfile)
     tweets = tweetify_text(tweetfile, use_lines)
     return get_today_tweet(tweets, start_date)
