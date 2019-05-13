@@ -7,21 +7,25 @@ import time
 from twython import TwythonStreamer
 from tweetbot_lib import BotTweet
 
+def now():
+    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+
 class TweetStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
-            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-            print now, data['user']['screen_name'], ':', data['text'].encode('utf-8'), "https://twitter.com/{0}/status/{1}".format(data['user']['screen_name'], data['id'])
+            name = data['user']['screen_name']
+            url = "https://twitter.com/{0}/status/{1}".format(name, data['id'])
+            text = data['text'].encode('utf-8')
+            print("{} {}: {} {}".format(now(), name, text, url))
     
     def on_error(self, status_code, data):
-        print "in on_error"
-        print status_code, data
+        print(now(), "in on_error")
+        print(status_code, data)
         time.sleep(10)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
-        print "in on_timeout"
-        print "timeout"
+        print(now(), "timeout")
 
 
 if len(sys.argv) > 1:
@@ -29,7 +33,7 @@ if len(sys.argv) > 1:
 else:
     track = "readtheplaque,alwaysreadtheplaque,#readtheplaque,#alwaysreadtheplaque"
 
-print "Tracking '%s'" % track
+print("Tracking '{}'".format(track))
 
 keys = BotTweet().get_keys()
 while True:
@@ -41,5 +45,5 @@ while True:
             requests.exceptions.ChunkedEncodingError,
             socket.error,
         ) as err:
-        print "restarting ", err
+        print(now(), "restarting ", type(err).__name__, err)
         time.sleep(60)
