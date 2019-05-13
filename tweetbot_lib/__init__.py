@@ -51,7 +51,7 @@ class BotTweet(object):
                 auth_keys[name] = value
         keynames = ['APP_KEY', 'APP_SEC', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SEC']
         key_prefix = os.path.basename(self.bot_filename)
-        keys = [auth_keys["%s%s" % (key_prefix, kn)] for kn in keynames]
+        keys = [auth_keys["{}{}".format(key_prefix, kn)] for kn in keynames]
         return keys
 
     def publish(self, debug=False):

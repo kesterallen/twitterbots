@@ -1,6 +1,5 @@
 
 import datetime
-from pprint import pprint
 import random
 import requests
 import socket
@@ -39,38 +38,40 @@ replies = [
 class HarpoSleep(Exception):
     pass
 
-def current_time():
+def now():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
 
 def get_reply(data):
-    reply = "@%s %s" % (data['user']['screen_name'], random.choice(replies))
-    return reply
+    id = data['id']
+    name = data['user']['screen_name']
+    url = "https://twitter.com/{0}/status/{1}".format(name, id)
+    reply = "@{} {}".format(data['user']['screen_name'], random.choice(replies))
+    return id, url, reply
 
 class HarpoStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
-            reply = get_reply(data)
-            print current_time(), reply, \
-                "https://twitter.com/{0}/status/{1}".format(data['user']['screen_name'], data['id'])
-            twitter = Twython(keys[0], keys[1], keys[2], keys[3])
+            id, url, reply = get_reply(data)
+            print("{} {} {}".format(now(), reply, url))
+            twitter = Twython(*keys)
             try:
-                twitter.update_status(status=reply, in_reply_to_status_id=data['id'])
+                twitter.update_status(status=reply, in_reply_to_status_id=id)
             except TwythonError:
                 # Get a non-duplicate reply
                 old_reply = reply
                 while old_reply == reply:
-                    reply = get_reply(data)
+                    id, url, reply = get_reply(data)
                 time.sleep(10)
-                twitter.update_status(status=reply, in_reply_to_status_id=data['id'])
+                twitter.update_status(status=reply, in_reply_to_status_id=id)
             raise HarpoSleep()
 
     def on_error(self, status_code, data):
-        print current_time(), "in on_error", status_code, "on_error", data
+        print(now(), "in on_error", status_code, "on_error", data)
         time.sleep(90)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
-        print current_time(), status_code, "on_timeout", data
+        print(now(), status_code, "on_timeout", data)
         time.sleep(90)
 
 def main():
@@ -81,7 +82,7 @@ def main():
 
     while True:
         try:
-            streamer = HarpoStreamer(keys[0], keys[1], keys[2], keys[3])
+            streamer = HarpoStreamer(*keys)
             streamer.statuses.filter(track=track)
         except (
             requests.exceptions.ConnectionError,
@@ -89,7 +90,7 @@ def main():
             socket.error,
             TwythonError,
         ) as err:
-            print current_time(), "restarting ", err
+            print(now(), "restarting ", err)
             time.sleep(60)
         except HarpoSleep as hts:
             time.sleep(2700)
