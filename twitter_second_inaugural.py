@@ -1,12 +1,15 @@
 
 import datetime
-from tweetbot_lib import parse_text_and_get_today_tweet
+import tweetbot_lib
 
-START_DATE = datetime.datetime(2016, 11, 28, 5, 0, 0) # 5AM 28-Nov-2016
+START_DATE = datetime.datetime(2019, 4, 19, 5, 0, 0) # 5AM 18-April-2019
+DEBUG = False
 
 def main():
-    today_tweet = parse_text_and_get_today_tweet('second_inaugural.txt', START_DATE)
-    today_tweet.publish()
+    tweetbot_lib.MAX_TWEET_LEN = 280
+    today_tweet = tweetbot_lib.parse_text_and_get_today_tweet(
+        'second_inaugural.txt', START_DATE, use_lines=True)
+    today_tweet.publish(debug=DEBUG)
 
 if __name__ == '__main__':
     main()
