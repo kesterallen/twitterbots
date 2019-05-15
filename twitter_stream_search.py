@@ -17,16 +17,15 @@ class TweetStreamer(TwythonStreamer):
             url = "https://twitter.com/{0}/status/{1}".format(name, data['id'])
             text = data['text'].encode('utf-8')
             print("{} {}: {} {}".format(now(), name, text, url))
-    
+
     def on_error(self, status_code, data):
-        print(now(), "in on_error")
+        print("{}: in on_error".format(now()))
         print(status_code, data)
         time.sleep(10)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
-        print(now(), "timeout")
-
+        print("{}: timeout".format(now))
 
 if len(sys.argv) > 1:
     track = ",".join(sys.argv[1:])
@@ -35,15 +34,14 @@ else:
 
 print("Tracking '{}'".format(track))
 
-keys = BotTweet().get_keys()
 while True:
     try:
-        streamer = TweetStreamer(keys[0], keys[1], keys[2], keys[3])
+        streamer = TweetStreamer(*(BotTweet().get_keys()))
         streamer.statuses.filter(track=track)
     except (
-            requests.exceptions.ConnectionError,
-            requests.exceptions.ChunkedEncodingError,
-            socket.error,
-        ) as err:
+        requests.exceptions.ConnectionError,
+        requests.exceptions.ChunkedEncodingError,
+        socket.error,
+    ) as err:
         print(now(), "restarting ", type(err).__name__, err)
         time.sleep(60)
