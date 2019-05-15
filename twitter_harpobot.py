@@ -53,12 +53,18 @@ def now():
 class ReplierStreamer(TwythonStreamer):
     """Replier streamer class."""
 
+    def __init__(self, keys, track, replies):
+        super().__init__(*keys)
+        self.keys = keys
+        self.track = track
+        self.replies = replies.split(',')
+
     def _get_reply(self, data):
         """Extract tweet ID, author, and the reply to it."""
         id = data['id']
         name = data['user']['screen_name']
         url = "https://twitter.com/{0}/status/{1}".format(name, id)
-        reply = random.choice(self.replies_arg)
+        reply = random.choice(self.replies)
         reply = "@{} {}".format(name, reply)
         return id, url, reply
 
@@ -67,7 +73,7 @@ class ReplierStreamer(TwythonStreamer):
         if 'text' in data:
             id, url, reply = self._get_reply(data)
             print("{} {} {}".format(now(), reply, url))
-            twitter = Twython(*(BotTweet().get_keys()))
+            twitter = Twython(*(self.keys))
             try:
                 twitter.update_status(status=reply, in_reply_to_status_id=id)
             except TwythonError:
@@ -91,7 +97,9 @@ class ReplierStreamer(TwythonStreamer):
         time.sleep(90)
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Streaming Response Bot")
+    parser = argparse.ArgumentParser(
+        description="Streaming Response Bot. Defaults to @HarpoBot"
+    )
     parser.add_argument(
         '--track',
         type=str,
@@ -102,17 +110,22 @@ def get_args():
         type=str,
         default=",".join(DEFAULT_REPLIES),
         help="comma-separated string of replies")
+    parser.add_argument(
+        '--botname',
+        type=str,
+        default="twitter_harpobot.py",
+        help="bot filename (used for determining which keys to use)")
     return parser.parse_args()
 
 def main():
 
     args = get_args()
+    keys = BotTweet(botname=args.botname).get_keys()
 
     while True:
         try:
-            streamer = ReplierStreamer(*(BotTweet().get_keys()))
-            streamer.replies_arg = args.replies.split(',')
-            streamer.statuses.filter(track=args.track)
+            streamer = ReplierStreamer(keys, args.track, args.replies)
+            streamer.statuses.filter(track=streamer.track)
         except (
             requests.exceptions.ConnectionError,
             requests.exceptions.ChunkedEncodingError,

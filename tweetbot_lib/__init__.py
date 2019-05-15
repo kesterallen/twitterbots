@@ -9,12 +9,12 @@ MAX_TWEET_LEN = 140
 
 class BotTweet(object):
 
-    def __init__(self, word=None, bot_filename=None):
-        if bot_filename is None:
+    def __init__(self, word=None, botname=None):
+        if botname is None:
             fullname = inspect.stack()[-1][1] #original calling script's filename
-            self.bot_filename = os.path.basename(fullname)
+            self.botname = os.path.basename(fullname)
         else:
-            self.bot_filename = bot_filename
+            self.botname = botname
 
         self.words = [] if word is None else [word]
 
@@ -50,7 +50,7 @@ class BotTweet(object):
                 name, value = row.strip().split('=')
                 auth_keys[name] = value
         keynames = ['APP_KEY', 'APP_SEC', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SEC']
-        key_prefix = os.path.basename(self.bot_filename)
+        key_prefix = os.path.basename(self.botname)
         keys = [auth_keys["{}{}".format(key_prefix, kn)] for kn in keynames]
         return keys
 

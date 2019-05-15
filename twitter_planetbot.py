@@ -190,7 +190,7 @@ def main():
         import ipdb; ipdb.set_trace()
     gmaps_url = PLANETS[planet_name].gmaps_url_tmpl.format(box)
     text = "%s, %s, %s" % (planet_name, box.pretty_str, url)
-    twitter = BotTweet(word=text, bot_filename=PLANETS[planet_name]['botname'])
+    twitter = BotTweet(word=text, botname=PLANETS[planet_name]['botname'])
 
     if not DEBUG:
         twitter.publish_with_image(IMAGE_FN)
