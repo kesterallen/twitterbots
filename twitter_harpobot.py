@@ -53,11 +53,12 @@ def now():
 class ReplierStreamer(TwythonStreamer):
     """Replier streamer class."""
 
-    def __init__(self, keys, track, replies):
+    def __init__(self, keys, track, replies, sendtweet=True):
         super().__init__(*keys)
         self.keys = keys
         self.track = track
         self.replies = replies.split(',')
+        self.sendtweet = sendtweet
 
     def _get_reply(self, data):
         """Extract tweet ID, author, and the reply to it."""
@@ -75,14 +76,20 @@ class ReplierStreamer(TwythonStreamer):
             print("{} {} {}".format(now(), reply, url))
             twitter = Twython(*(self.keys))
             try:
-                twitter.update_status(status=reply, in_reply_to_status_id=id)
+                if self.sendtweet:
+                    twitter.update_status(status=reply, in_reply_to_status_id=id)
+                else:
+                    print("Debug: supressing tweet '{}'".format(reply))
             except TwythonError:
                 # Get a non-duplicate reply
                 old_reply = reply
                 while old_reply == reply:
                     id, url, reply = self._get_reply(data)
                 time.sleep(10)
-                twitter.update_status(status=reply, in_reply_to_status_id=id)
+                if self.sendtweet:
+                    twitter.update_status(status=reply, in_reply_to_status_id=id)
+                else:
+                    print("Debug: supressing un-duplicated tweet '{}'".format(reply))
             raise ReplierSleep()
 
     def on_error(self, status_code, data):
@@ -115,16 +122,22 @@ def get_args():
         type=str,
         default="twitter_harpobot.py",
         help="bot filename (used for determining which keys to use)")
+    parser.add_argument(
+        '--sendtweet',
+        type=lambda s: s.lower() in ['true', 't', 'yes', 'y', '1'],
+        default=True,
+        help="Set this to False for non-tweeting debug mode")
     return parser.parse_args()
 
 def main():
 
     args = get_args()
+    print(args)
     keys = BotTweet(botname=args.botname).get_keys()
 
     while True:
         try:
-            streamer = ReplierStreamer(keys, args.track, args.replies)
+            streamer = ReplierStreamer(keys, args.track, args.replies, args.sendtweet)
             streamer.statuses.filter(track=streamer.track)
         except (
             requests.exceptions.ConnectionError,
