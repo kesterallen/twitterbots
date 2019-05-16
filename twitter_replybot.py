@@ -3,13 +3,18 @@
 import argparse
 import datetime
 import random
-import requests
 import socket
-import sys
 import time
+
+import requests
 from twython import TwythonStreamer, Twython
 from twython.exceptions import TwythonError
 from tweetbot_lib import BotTweet
+
+
+SLEEP_ERROR = 90
+SLEEP_TWEET = 2700
+SLEEP_DUPLICATE = 10
 
 DEFAULT_TRACKS = [ # harpo's
     "harpo marx",
@@ -43,7 +48,6 @@ class ReplierSleep(Exception):
     """
     Exception to cause a sleep in the main method, instead of the on_success
     """
-    pass
 
 def now():
     """Convenience function to get current time in right format."""
@@ -52,58 +56,61 @@ def now():
 
 class ReplierStreamer(TwythonStreamer):
     """Replier streamer class."""
-
-    def __init__(self, keys, track, replies, sendtweet=True):
+    def __init__(self, keys, args):
         super().__init__(*keys)
         self.keys = keys
-        self.track = track
-        self.replies = replies.split(',')
-        self.sendtweet = sendtweet
+        self.track = args.track
+        self.replies = args.replies.split(',')
+        self.sendtweet = args.sendtweet
+        self.sleep_error = args.sleep_error
+        self.sleep_tweet = args.sleep_tweet
+        self.sleep_duplicate = args.sleep_duplicate
 
     def _get_reply(self, data):
         """Extract tweet ID, author, and the reply to it."""
-        id = data['id']
+        st_id = data['id']
         name = data['user']['screen_name']
-        url = "https://twitter.com/{0}/status/{1}".format(name, id)
+        url = "https://twitter.com/{0}/status/{1}".format(name, st_id)
         reply = random.choice(self.replies)
         reply = "@{} {}".format(name, reply)
-        return id, url, reply
+        return st_id, url, reply
 
     def on_success(self, data):
         """Response to successful scan."""
         if 'text' in data:
-            id, url, reply = self._get_reply(data)
+            st_id, url, reply = self._get_reply(data)
             print("{} {} {}".format(now(), reply, url))
-            twitter = Twython(*(self.keys))
+            twy = Twython(*(self.keys))
             try:
                 if self.sendtweet:
-                    twitter.update_status(status=reply, in_reply_to_status_id=id)
+                    twy.update_status(status=reply, in_reply_to_status_id=st_id)
                 else:
                     print("Debug: supressing tweet '{}'".format(reply))
             except TwythonError:
                 # Get a non-duplicate reply
                 old_reply = reply
                 while old_reply == reply:
-                    id, url, reply = self._get_reply(data)
-                time.sleep(10)
+                    st_id, url, reply = self._get_reply(data)
+                time.sleep(SLEEP_DUPLICATE)
                 if self.sendtweet:
-                    twitter.update_status(status=reply, in_reply_to_status_id=id)
+                    twy.update_status(status=reply, in_reply_to_status_id=st_id)
                 else:
-                    print("Debug: supressing un-duplicated tweet '{}'".format(reply))
+                    print("Debug: skip duplicate tweet '{}'".format(reply))
             raise ReplierSleep()
 
     def on_error(self, status_code, data):
         """Response to failed scan."""
         print(now(), "in on_error", status_code, "on_error", data)
-        time.sleep(90)
+        time.sleep(SLEEP_ERROR)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
         """Response to timeout scan."""
         print(now(), status_code, "on_timeout", data)
-        time.sleep(90)
+        time.sleep(SLEEP_ERROR)
 
 def get_args():
+    """Parse the cli args"""
     parser = argparse.ArgumentParser(
         description="Streaming Response Bot. Defaults to @HarpoBot"
     )
@@ -116,39 +123,54 @@ def get_args():
         '--replies',
         type=str,
         default=",".join(DEFAULT_REPLIES),
-        help="comma-separated string of replies")
+        help="comma-separated string of replies",)
     parser.add_argument(
         '--botname',
         type=str,
         default="twitter_harpobot.py",
-        help="bot filename (used for determining which keys to use)")
+        help="bot filename (used for determining which keys to use)",)
     parser.add_argument(
         '--sendtweet',
         type=lambda s: s.lower() in ['true', 't', 'yes', 'y', '1'],
         default=True,
-        help="Set this to False for non-tweeting debug mode")
+        help="Set this to False for non-tweeting debug mode",)
+    parser.add_argument(
+        '--sleep_error',
+        type=int,
+        default=SLEEP_ERROR,
+        help='Number of seconds to sleep after an error',)
+    parser.add_argument(
+        '--sleep_tweet',
+        type=int,
+        default=SLEEP_TWEET,
+        help='Number of seconds to sleep after a successful tweet',)
+    parser.add_argument(
+        '--sleep_duplicate',
+        type=int,
+        default=SLEEP_DUPLICATE,
+        help='Number of seconds to sleep after attempting a duplicate tweet',)
+
     return parser.parse_args()
 
 def main():
-
+    """Run Streamer"""
     args = get_args()
-    print(args)
     keys = BotTweet(botname=args.botname).get_keys()
 
     while True:
         try:
-            streamer = ReplierStreamer(keys, args.track, args.replies, args.sendtweet)
+            streamer = ReplierStreamer(keys, args)
             streamer.statuses.filter(track=streamer.track)
         except (
-            requests.exceptions.ConnectionError,
-            requests.exceptions.ChunkedEncodingError,
-            socket.error,
-            TwythonError,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ChunkedEncodingError,
+                socket.error,
+                TwythonError,
         ) as err:
             print("{} restarting: {}".format(now(), err))
-            time.sleep(60)
-        except ReplierSleep as hts:
-            time.sleep(2700)
+            time.sleep(SLEEP_ERROR)
+        except ReplierSleep:
+            time.sleep(SLEEP_TWEET)
 
 if __name__ == '__main__':
     main()
