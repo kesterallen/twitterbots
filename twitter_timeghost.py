@@ -1,7 +1,7 @@
 
 from tweetbot_lib import BotTweet
 
-tweet_url = 'http://timeghost-app.appspot.com/tweet'
+tweet_url = 'http://timeg.host/tweet'
 
 def main():
     twitter = BotTweet()
