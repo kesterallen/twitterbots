@@ -170,9 +170,9 @@ def get_random_planet_image(planet, width, height, lat_box_side, max_pct_black=0
     image.save(IMAGE_FN)
 
     if DEBUG:
-        print box.pretty_str
-        print url
-        print "http://surlyfritter.appspot.com/globe?%s,%s,4" % (box.lat, box.lng)
+        print(box.pretty_str)
+        print(url)
+        print("http://surlyfritter.appspot.com/globe?{},{},4".format(box.lat, box.lng))
 
     return box, url
 

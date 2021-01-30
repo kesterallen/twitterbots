@@ -37,8 +37,8 @@ class YimbyStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
             reply = get_reply(data)
-            print current_time(), reply, \
-                "https://twitter.com/{0}/status/{1}".format(data['user']['screen_name'], data['id'])
+            print(current_time(), reply,
+                "https://twitter.com/{0}/status/{1}".format(data['user']['screen_name'], data['id']))
             twitter = Twython(keys[0], keys[1], keys[2], keys[3])
             try:
                 twitter.update_status(status=reply, in_reply_to_status_id=data['id'])
@@ -52,12 +52,12 @@ class YimbyStreamer(TwythonStreamer):
             raise YimbySleep()
 
     def on_error(self, status_code, data):
-        print current_time(), "in on_error", status_code, "on_error", data
+        print(current_time(), "in on_error", status_code, "on_error", data)
         time.sleep(1)
         self.disconnect()
 
     def on_timeout(self, status_code, data):
-        print current_time(), status_code, "on_timeout", data
+        print(current_time(), status_code, "on_timeout", data)
         time.sleep(1)
 
 def main():
@@ -76,7 +76,7 @@ def main():
             socket.error,
             TwythonError,
         ) as err:
-            print current_time(), "restarting ", err
+            print(current_time(), "restarting ", err)
             time.sleep(60)
         except YimbySleep as ys_err:
             time.sleep(2700)
