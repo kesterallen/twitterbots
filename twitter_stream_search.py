@@ -15,8 +15,8 @@ class TweetStreamer(TwythonStreamer):
         if 'text' in data:
             name = data['user']['screen_name']
             url = "https://twitter.com/{0}/status/{1}".format(name, data['id'])
-            text = data['text'].encode('utf-8')
-            print("{} {}: {} {}".format(now(), name, text, url))
+            text = data['text']
+            print("\n{} {} {}\n{}".format(now(), name, url, text))
 
     def on_error(self, status_code, data):
         print("{}: in on_error".format(now()))
@@ -24,8 +24,8 @@ class TweetStreamer(TwythonStreamer):
         time.sleep(10)
         self.disconnect()
 
-    def on_timeout(self, status_code, data):
-        print("{}: timeout".format(now))
+    def on_timeout(self, status_code=None, data=None):
+        print("{}: timeout".format(now()))
 
 if len(sys.argv) > 1:
     track = ",".join(sys.argv[1:])

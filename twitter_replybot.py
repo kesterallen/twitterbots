@@ -87,10 +87,10 @@ class ReplierStreamer(TwythonStreamer):
                 else:
                     print("Debug: supressing tweet '{}'".format(reply))
             except TwythonError:
-                # Get a non-duplicate reply
+                # Twitter rejects duplicate replies, get a non-duplicate one:
                 old_reply = reply
                 while old_reply == reply:
-                    st_id, url, reply = self._get_reply(data)
+                    _, _, reply = self._get_reply(data)
                 time.sleep(SLEEP_DUPLICATE)
                 if self.sendtweet:
                     twy.update_status(status=reply, in_reply_to_status_id=st_id)
@@ -100,13 +100,13 @@ class ReplierStreamer(TwythonStreamer):
 
     def on_error(self, status_code, data):
         """Response to failed scan."""
-        print(now(), "in on_error", status_code, "on_error", data)
+        print("{} in on_error: {} {}".format(now(), status_code, data))
         time.sleep(SLEEP_ERROR)
         self.disconnect()
 
-    def on_timeout(self, status_code, data):
+    def on_timeout(self):
         """Response to timeout scan."""
-        print(now(), status_code, "on_timeout", data)
+        print("{} in on_timeout".format(now()))
         time.sleep(SLEEP_ERROR)
 
 def get_args():

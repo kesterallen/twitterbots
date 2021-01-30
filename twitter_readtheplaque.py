@@ -1,7 +1,7 @@
 
 from tweetbot_lib import BotTweet
 
-tweet_url = 'http://readtheplaque.com/tweet'
+tweet_url = 'https://readtheplaque.com/tweet'
 
 def main():
     twitter = BotTweet()
