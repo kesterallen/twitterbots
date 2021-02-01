@@ -23,7 +23,7 @@ class BotTweet(object):
 
     def append(self, word):
         self.words.append(word)
-        
+
     @property
     def is_too_long(self):
         return self.len > MAX_TWEET_LEN
@@ -65,7 +65,7 @@ class BotTweet(object):
     def publish_with_image(self, image_fn, debug=False):
         app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
-        with open(image_fn) as image:
+        with open(image_fn, 'rb') as image:
             response = twitter.upload_media(media=image)
         return twitter.update_status(
             status=self.str, media_ids=[response['media_id']])
@@ -82,7 +82,7 @@ def get_tweet_filename(filename):
 def tweetify_text(textfile, use_lines=False):
     """
     Break the input string 'text' into MAX_TWEET_LEN-char-or-less BotTweet objects.
-    
+
     If use_lines is True, make one tweet per line in the file; otherwise
     """
     tweets = []

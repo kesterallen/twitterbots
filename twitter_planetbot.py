@@ -15,13 +15,12 @@ IMAGE_FN = "tmpplanet.jpg"
 GMAPS_STUB = 'https://www.google.com/maps/space/'
 
 PLANETS = AttrDict({
-    'Venus': AttrDict({ 
+    'Venus': AttrDict({
         'map': '/maps/venus/venus_simp_cyl.map',
         'layers': 'MAGELLAN',
         'botname': 'venusbot',
         'lat_box_side_degrees': (0.1, 3.0),
         'km_per_lat_deg': 105.6,
-        'gmaps_url_tmpl': GMAPS_STUB + 'venus/@{0.lat_gmap},{0.lng_gmap},5z',
     }),
     'Mercury': AttrDict({
         'map': '/maps/mercury/mercury_simp_cyl.map',
@@ -29,7 +28,6 @@ PLANETS = AttrDict({
         'botname': 'mercurybot',
         'lat_box_side_degrees': (1.0, 20.0),
         'km_per_lat_deg': 42.58,
-        'gmaps_url_tmpl': GMAPS_STUB + 'mercury/@{0.lat_gmap},{0.lng_gmap},5z',
     })
 })
 
@@ -58,7 +56,7 @@ class BoundingBox(object):
         # Adjust the lng (horizontal) size of the box by aspect ratio and
         # the latitude (so high-latitude images look right):
         lat_rad = lat * math.pi / 180.0
-        lng_box_side = lat_box_side * aspect_ratio / math.cos(abs(lat_rad)) 
+        lng_box_side = lat_box_side * aspect_ratio / math.cos(abs(lat_rad))
 
         self.lng_end = lng + lng_box_side
         self.lat_end = lat + lat_box_side
@@ -113,7 +111,7 @@ def _gauss(x, *p):
     return A * np.exp(-(x-mu)**2/(2.0*sigma**2))
 
 def _ignore(hist, offset=10, width=3.0):
-    """ 
+    """
     Generate an ignore range that excludes everything based on a gaussian fit
     to hist[offset:] (ignore first offset bins). Default ignore range is
     everything outside +/- 3 std from the center of the gaussian fit.
@@ -126,7 +124,7 @@ def _ignore(hist, offset=10, width=3.0):
     p0 = [p_max, p_ctr, p_std]
 
     # Perform the fit, and get the fit coefficients:
-    coeff, var_matrix = optimize.curve_fit(_gauss, range(len(hist)), hist, p0=p0)
+    coeff, var_matrix = optimize.curve_fit(_gauss, list(range(len(hist))), hist, p0=p0)
 
     # Get the left and right edges of +/- 3 std dev from the fit center:
     data_start = int(coeff[1] - width*coeff[2])
@@ -141,7 +139,9 @@ def _ignore(hist, offset=10, width=3.0):
         data_start = 0
         data_end = 255
 
-    ignore = range(0,data_start) + range(data_end,255)
+    ignore = list(range(0,data_start)) + list(range(data_end,255))
+    if DEBUG:
+        print(ignore)
 
     return ignore
 
@@ -150,15 +150,14 @@ def get_random_planet_image(planet, width, height, lat_box_side, max_pct_black=0
 
     planet_data = PLANETS[planet]
 
-    # TODO: this should probably be a stringio
     aspect_ratio = float(width) / float(height)
     image_too_dark = True
     while image_too_dark:
         box = get_bounding_box(lat_box_side, aspect_ratio, planet_data.km_per_lat_deg)
         url = IMG_URL_TMPL.format(planet_data, box, width, height)
-        urllib.urlretrieve(url, IMAGE_FN)
+        tmp_image_fn, headers = urllib.request.urlretrieve(url)
 
-        image = Image.open(IMAGE_FN).convert('L')
+        image = Image.open(tmp_image_fn).convert('L')
         hist = image.histogram()
 
         num_black = hist[0]
@@ -167,14 +166,13 @@ def get_random_planet_image(planet, width, height, lat_box_side, max_pct_black=0
 
     ignore = _ignore(hist)
     image = ImageOps.autocontrast(image, ignore=ignore)
-    image.save(IMAGE_FN)
+    image_fn = "{}.jpg".format(tmp_image_fn)
+    image.save(image_fn)
 
     if DEBUG:
-        print box.pretty_str
-        print url
-        print "http://surlyfritter.appspot.com/globe?%s,%s,4" % (box.lat, box.lng)
+        print(box.pretty_str, url)
 
-    return box, url
+    return box, url, image_fn
 
 def main():
     planet_name = sys.argv[1]
@@ -184,24 +182,20 @@ def main():
     height = 1080
     lat_box_side = random.uniform(*PLANETS[planet_name].lat_box_side_degrees)
 
-    box, url = get_random_planet_image(planet_name, width, height, lat_box_side)
+    box, url, image_fn = get_random_planet_image(planet_name, width, height, lat_box_side)
 
     if DEBUG:
-        import ipdb; ipdb.set_trace()
-    gmaps_url = PLANETS[planet_name].gmaps_url_tmpl.format(box)
-    text = "%s, %s, %s" % (planet_name, box.pretty_str, url)
+        print(box.pretty_str, url)
+
+    text = "{0}, {1.pretty_str}, {2}".format(planet_name, box, url)
     twitter = BotTweet(word=text, botname=PLANETS[planet_name]['botname'])
 
     if not DEBUG:
-        twitter.publish_with_image(IMAGE_FN)
-
-    os.remove(IMAGE_FN)
+        twitter.publish_with_image(image_fn)
 
 if __name__ == '__main__':
     main()
 
 # For Venus:
-# http://surlyfritter.appspot.com/globe?45,-65,4 
-# and 
 # https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/venus/venus_simp_cyl.map&SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&FORMAT=image%2Fjpeg&LAYERS=MAGELLAN&BBOX=90,-45,215.707872211,5&WIDTH=1920&HEIGHT=1080
 # match!
