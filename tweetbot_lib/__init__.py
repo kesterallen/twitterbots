@@ -1,3 +1,4 @@
+"""Module to tweet for bots"""
 
 import datetime
 import inspect
@@ -7,7 +8,8 @@ from twython import Twython
 
 MAX_TWEET_LEN = 140
 
-class BotTweet(object):
+class BotTweet:
+    """Bot tweet module"""
 
     def __init__(self, word=None, botname=None):
         if botname is None:
@@ -59,6 +61,7 @@ class BotTweet(object):
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
         if debug:
             print(self.str)
+            return self.str
         else:
             return twitter.update_status(status=self.str)
 
@@ -67,6 +70,8 @@ class BotTweet(object):
         twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
         with open(image_fn, 'rb') as image:
             response = twitter.upload_media(media=image)
+        if debug:
+            print(response)
         return twitter.update_status(
             status=self.str, media_ids=[response['media_id']])
 
