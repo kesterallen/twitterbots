@@ -1,14 +1,14 @@
 
-from attrdict import AttrDict
 import math
-import numpy as np
-import os
-from PIL import Image, ImageOps
 import random
-from scipy import optimize
 import sys
-from tweetbot_lib import BotTweet
 import urllib
+
+from attrdict import AttrDict
+import numpy as np
+from PIL import Image, ImageOps
+from scipy import optimize
+from tweetbot_lib import BotTweet
 
 DEBUG = False
 IMAGE_FN = "tmpplanet.jpg"
@@ -48,7 +48,7 @@ IMG_URL_TMPL = "".join([
         'HEIGHT={3}',
 ])
 
-class BoundingBox(object):
+class BoundingBox:
     def __init__(self, lng, lat, lat_box_side, aspect_ratio, km_per_lat_deg):
         self.lng = lng
         self.lat = lat
@@ -107,6 +107,7 @@ def get_bounding_box(lat_box_side, aspect_ratio, km_per_lat_deg):
 
 def _gauss(x, *p):
     """ Define model function to be used to fit to the data. """
+    # pylint: disable=invalid-name
     A, mu, sigma = p
     return A * np.exp(-(x-mu)**2/(2.0*sigma**2))
 
@@ -121,10 +122,11 @@ def _ignore(hist, offset=10, width=3.0):
     p_max = max(hist[offset:]) # value of biggest peak in hist, excluding 0:offset
     p_ctr = hist.index(p_max) # the index location of that value
     p_std = 20.0 # initial guess, ~10% of hist width
-    p0 = [p_max, p_ctr, p_std]
+    params_initial = [p_max, p_ctr, p_std]
 
     # Perform the fit, and get the fit coefficients:
-    coeff, var_matrix = optimize.curve_fit(_gauss, list(range(len(hist))), hist, p0=p0)
+    xdata = list(range(len(hist)))
+    coeff, var_matrix = optimize.curve_fit(_gauss, xdata, hist, params_initial)
 
     # Get the left and right edges of +/- 3 std dev from the fit center:
     data_start = int(coeff[1] - width*coeff[2])
@@ -139,7 +141,7 @@ def _ignore(hist, offset=10, width=3.0):
         data_start = 0
         data_end = 255
 
-    ignore = list(range(0,data_start)) + list(range(data_end,255))
+    ignore = list(range(0, data_start)) + list(range(data_end, 255))
     if DEBUG:
         print(ignore)
 
