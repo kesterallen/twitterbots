@@ -167,7 +167,7 @@ def main():
                 socket.error,
                 TwythonError,
         ) as err:
-            print("{} restarting: {}".format(now(), err))
+            #print("{} restarting: {}".format(now(), err))
             time.sleep(SLEEP_ERROR)
         except ReplierSleep:
             time.sleep(SLEEP_TWEET)

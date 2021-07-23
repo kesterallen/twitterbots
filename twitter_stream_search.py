@@ -38,10 +38,6 @@ while True:
     try:
         streamer = TweetStreamer(*(BotTweet().get_keys()))
         streamer.statuses.filter(track=track)
-    except (
-        requests.exceptions.ConnectionError,
-        requests.exceptions.ChunkedEncodingError,
-        socket.error,
-    ) as err:
-        print(now(), "restarting ", type(err).__name__, err)
+    except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError, socket.error) as err:
         time.sleep(60)
+    
