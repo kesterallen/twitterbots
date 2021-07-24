@@ -1,4 +1,7 @@
-
+"""
+Module to make images and descriptions of planets from the USGS planetary map
+server's CGI service.
+"""
 import math
 import random
 import sys
@@ -11,8 +14,6 @@ from scipy import optimize
 from tweetbot_lib import BotTweet
 
 DEBUG = False
-IMAGE_FN = "tmpplanet.jpg"
-GMAPS_STUB = 'https://www.google.com/maps/space/'
 
 PLANETS = AttrDict({
     'Venus': AttrDict({
@@ -49,49 +50,56 @@ IMG_URL_TMPL = "".join([
 ])
 
 class BoundingBox:
-    def __init__(self, lng, lat, lat_box_side, aspect_ratio, km_per_lat_deg):
-        self.lng = lng
-        self.lat = lat
+    """A bounding box in latitude/longitude with the correct aspect ratio"""
+    def __init__(self, lng_lat_side, aspect_ratio, km_per_lat_deg):
+        """Create a new box"""
+        self.lng = lng_lat_side.lng
+        self.lat = lng_lat_side.lat
 
         # Adjust the lng (horizontal) size of the box by aspect ratio and
         # the latitude (so high-latitude images look right):
-        lat_rad = lat * math.pi / 180.0
-        lng_box_side = lat_box_side * aspect_ratio / math.cos(abs(lat_rad))
+        lat_rad = lng_lat_side.lat * math.pi / 180.0
+        lng_box_side = lng_lat_side.side * aspect_ratio / math.cos(abs(lat_rad))
 
-        self.lng_end = lng + lng_box_side
-        self.lat_end = lat + lat_box_side
+        self.lng_end = lng_lat_side.lng + lng_box_side
+        self.lat_end = lng_lat_side.lat + lng_lat_side.side
 
         self.km_per_lat_deg = km_per_lat_deg
 
     @property
     def box_height_km(self):
+        """The box's latitude measure"""
         return self.km_per_lat_deg * (self.lat_end - self.lat)
 
     @property
     def is_bad(self):
+        """Are the end points for latitude or longitude incorrect"""
         return self.lng_end >= 360.0 or abs(self.lat_end) >= 90.0
 
     @property
     def str(self):
+        """String representation"""
         return "{0.lng},{0.lat},{0.lng_end},{0.lat_end}".format(self)
 
     @property
     def pretty_str(self):
+        """More verbose string representation"""
         return "latitude: %.1f longitude: %.1f, %.1f km wide" % (
             self.lat, self.lng, self.box_height_km)
 
     @property
     def lat_gmap(self):
+        """Google Maps latitude center"""
         return 0.5 * (self.lat + self.lat_end)
 
     @property
     def lng_gmap(self):
-        """Google Maps longitude runs from -180 to 180, not 0 to 360."""
+        """Google Maps longitude runs from -180 to 180, not 0 to 360"""
         return -180.0 + 0.5 * (self.lng + self.lng_end)
 
 
 def get_bounding_box(lat_box_side, aspect_ratio, km_per_lat_deg):
-    """Get a bounding box that is lat_box_side high and within bounds."""
+    """Get a bounding box that is lat_box_side high and within bounds"""
     is_bad_box = True
     while is_bad_box:
         # Math from http://mathworld.wolfram.com/SpherePointPicking.html
@@ -99,14 +107,15 @@ def get_bounding_box(lat_box_side, aspect_ratio, km_per_lat_deg):
         rand_v = random.random()
         lng = 360.0 * rand_u # Range: [0.0, 360.0]
         lat = math.acos(2.0 * rand_v - 1) * 180.0 / math.pi - 90.0 # Range: [-90.0, 90.0]
+        lng_lat_side = AttrDict({'lng': lng, 'lat': lat, 'side': lat_box_side})
 
-        box = BoundingBox(lng, lat, lat_box_side, aspect_ratio, km_per_lat_deg)
+        box = BoundingBox(lng_lat_side, aspect_ratio, km_per_lat_deg)
         is_bad_box = box.is_bad
 
     return box
 
 def _gauss(x, *p):
-    """ Define model function to be used to fit to the data. """
+    """Define model function to be used to fit to the data"""
     # pylint: disable=invalid-name
     A, mu, sigma = p
     return A * np.exp(-(x-mu)**2/(2.0*sigma**2))
@@ -117,6 +126,7 @@ def _ignore(hist, offset=10, width=3.0):
     to hist[offset:] (ignore first offset bins). Default ignore range is
     everything outside +/- 3 std from the center of the gaussian fit.
     """
+    #pylint: disable=unused-variable,unbalanced-tuple-unpacking
 
     # p0 is the initial guess for the fitting coefficients (A, mu, & sigma)
     p_max = max(hist[offset:]) # value of biggest peak in hist, excluding 0:offset
@@ -147,19 +157,21 @@ def _ignore(hist, offset=10, width=3.0):
 
     return ignore
 
-def get_random_planet_image(planet, width, height, lat_box_side, max_pct_black=0.5):
+def _get_image(lat_box_side, width, height, planet_data):
+    """Get a subimage to check for black pixel amount"""
+    aspect_ratio = float(width) / float(height)
+    box = get_bounding_box(lat_box_side, aspect_ratio, planet_data.km_per_lat_deg)
+    url = IMG_URL_TMPL.format(planet_data, box, width, height)
+    tmp_fn, headers = urllib.request.urlretrieve(url) #pylint: disable=unused-variable
+    image = Image.open(tmp_fn).convert('L')
+    return(box, url, tmp_fn, image)
+
+def get_random_planet_image(planet_data, width, height, lat_box_side, max_pct_black=0.5):
     """Get a subimage without too many black pixels"""
 
-    planet_data = PLANETS[planet]
-
-    aspect_ratio = float(width) / float(height)
     image_too_dark = True
     while image_too_dark:
-        box = get_bounding_box(lat_box_side, aspect_ratio, planet_data.km_per_lat_deg)
-        url = IMG_URL_TMPL.format(planet_data, box, width, height)
-        tmp_image_fn, headers = urllib.request.urlretrieve(url)
-
-        image = Image.open(tmp_image_fn).convert('L')
+        box, url, tmp_fn, image = _get_image(lat_box_side, width, height, planet_data)
         hist = image.histogram()
 
         num_black = hist[0]
@@ -168,7 +180,7 @@ def get_random_planet_image(planet, width, height, lat_box_side, max_pct_black=0
 
     ignore = _ignore(hist)
     image = ImageOps.autocontrast(image, ignore=ignore)
-    image_fn = "{}.jpg".format(tmp_image_fn)
+    image_fn = "{}.jpg".format(tmp_fn)
     image.save(image_fn)
 
     if DEBUG:
@@ -177,6 +189,9 @@ def get_random_planet_image(planet, width, height, lat_box_side, max_pct_black=0
     return box, url, image_fn
 
 def main():
+    """
+    Generate and publish a planet image
+    """
     planet_name = sys.argv[1]
     assert planet_name in PLANETS
 
@@ -184,13 +199,13 @@ def main():
     height = 1080
     lat_box_side = random.uniform(*PLANETS[planet_name].lat_box_side_degrees)
 
-    box, url, image_fn = get_random_planet_image(planet_name, width, height, lat_box_side)
+    box, url, image_fn = get_random_planet_image(PLANETS[planet_name], width, height, lat_box_side)
 
     if DEBUG:
         print(box.pretty_str, url)
 
-    text = "{0}, {1.pretty_str}, {2}".format(planet_name, box, url)
-    twitter = BotTweet(word=text, botname=PLANETS[planet_name]['botname'])
+    tweet_text = f"{planet_name}, {box.pretty_str}, {url}"
+    twitter = BotTweet(word=tweet_text, botname=PLANETS[planet_name]['botname'])
 
     if not DEBUG:
         twitter.publish_with_image(image_fn)
