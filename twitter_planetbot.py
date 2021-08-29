@@ -204,7 +204,7 @@ def main():
     if DEBUG:
         print(box.pretty_str, url)
 
-    tweet_text = f"{planet_name}, {box.pretty_str}, {url}"
+    tweet_text = "{}, {}, {}".format(planet_name, box.pretty_str, url)
     twitter = BotTweet(word=tweet_text, botname=PLANETS[planet_name]['botname'])
 
     if not DEBUG:

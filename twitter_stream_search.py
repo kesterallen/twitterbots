@@ -52,7 +52,7 @@ def main():
             requests.exceptions.ChunkedEncodingError,
             socket.error,
         ) as err:
-            print(now(), "restarting ", type(err).__name__, err)
+            # print(now(), "restarting ", type(err).__name__, err)
             time.sleep(60)
 
 if __name__ == '__main__':
