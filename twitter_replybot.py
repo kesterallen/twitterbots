@@ -70,7 +70,7 @@ class ReplierStreamer(TwythonStreamer):
         """Extract tweet ID, author, and the reply to it."""
         st_id = data['id']
         name = data['user']['screen_name']
-        url = "https://twitter.com/{0}/status/{1}".format(name, st_id)
+        url = f"https://twitter.com/{name}/status/{st_id}"
         reply = random.choice(self.replies)
         reply = f"@{name} {reply}"
         return st_id, url, reply
@@ -79,13 +79,13 @@ class ReplierStreamer(TwythonStreamer):
         """Response to successful scan."""
         if 'text' in data:
             st_id, url, reply = self._get_reply(data)
-            print("{} {} {}".format(now(), reply, url))
+            print(f"{now()} {reply} {url}")
             twy = Twython(*(self.keys))
             try:
                 if self.sendtweet:
                     twy.update_status(status=reply, in_reply_to_status_id=st_id)
                 else:
-                    print("Debug: supressing tweet '{}'".format(reply))
+                    print(f"Debug: supressing tweet '{reply}'")
             except TwythonError:
                 # Twitter rejects duplicate replies, get a non-duplicate one:
                 old_reply = reply
@@ -95,18 +95,18 @@ class ReplierStreamer(TwythonStreamer):
                 if self.sendtweet:
                     twy.update_status(status=reply, in_reply_to_status_id=st_id)
                 else:
-                    print("Debug: skip duplicate tweet '{}'".format(reply))
+                    print(f"Debug: skip duplicate tweet '{reply}'")
             raise ReplierSleep()
 
     def on_error(self, status_code, data):
         """Response to failed scan."""
-        print("{} in on_error: {} {}".format(now(), status_code, data))
+        print(f"{now()} in on_error: {status_code} {data}")
         time.sleep(SLEEP_ERROR)
         self.disconnect()
 
     def on_timeout(self):
         """Response to timeout scan."""
-        print("{} in on_timeout".format(now()))
+        print(f"{now()} in on_timeout")
         time.sleep(SLEEP_ERROR)
 
 def get_args():

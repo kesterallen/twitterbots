@@ -34,20 +34,14 @@ PLANETS = AttrDict({
 
 # Thanks to Trent Hare of the USGS for this service:
 #
-IMG_URL_TMPL = "".join([
-    'https://planetarymaps.usgs.gov/cgi-bin/mapserv?',
-        'map={0.map}&',
-        'SERVICE=WMS&',
-        'VERSION=1.1.1&',
-        'SRS=EPSG:4326&',
-        'STYLES=&',
-        'REQUEST=GetMap&',
-        'FORMAT=image%2Fjpeg&',
-        'LAYERS={0.layers}&',
-        'BBOX={1.str}&',
-        'WIDTH={2}&',
-        'HEIGHT={3}',
-])
+def usgs_url(planet_data, box, width, height):
+    return (
+        "https://planetarymaps.usgs.gov/cgi-bin/mapserv?"
+        "SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&"
+        "FORMAT=image%2Fjpeg&"
+        f"LAYERS={planet_data.layers}&BBOX={box.str}&"
+        f"WIDTH={width}&HEIGHT={height}&map={planet_data.map}"
+    )
 
 class BoundingBox:
     """A bounding box in latitude/longitude with the correct aspect ratio"""
@@ -79,7 +73,7 @@ class BoundingBox:
     @property
     def str(self):
         """String representation"""
-        return "{0.lng},{0.lat},{0.lng_end},{0.lat_end}".format(self)
+        return f"{self.lng},{self.lat},{self.lng_end},{self.lat_end}"
 
     @property
     def pretty_str(self):
@@ -161,7 +155,7 @@ def _get_image(lat_box_side, width, height, planet_data):
     """Get a subimage to check for black pixel amount"""
     aspect_ratio = float(width) / float(height)
     box = get_bounding_box(lat_box_side, aspect_ratio, planet_data.km_per_lat_deg)
-    url = IMG_URL_TMPL.format(planet_data, box, width, height)
+    url = usgs_url(planet_data, box, width, height)
     tmp_fn, headers = urllib.request.urlretrieve(url) #pylint: disable=unused-variable
     image = Image.open(tmp_fn).convert('L')
     return(box, url, tmp_fn, image)
@@ -204,7 +198,7 @@ def main():
     if DEBUG:
         print(box.pretty_str, url)
 
-    tweet_text = "{}, {}, {}".format(planet_name, box.pretty_str, url)
+    tweet_text = f"{planet_name}, {box.pretty_str}, {url}"
     twitter = BotTweet(word=tweet_text, botname=PLANETS[planet_name]['botname'])
 
     if not DEBUG:

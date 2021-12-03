@@ -19,20 +19,20 @@ class TweetStreamer(TwythonStreamer):
         """Success method"""
         if 'text' in data:
             name = data['user']['screen_name']
-            url = "https://twitter.com/{0}/status/{1}".format(name, data['id'])
+            url = f"https://twitter.com/{name}/status/{data['id']}"
             text = data['text']
-            print("\n{} {} {}\n{}".format(now(), name, url, text))
+            print(f"\n{now()} {name} {url}\n{text}")
 
     def on_error(self, status_code, data): #pylint: disable=no-self-use
         """error handling"""
-        print("{}: in on_error".format(now()))
+        print(f"{now()}: in on_error")
         print(status_code, data)
         time.sleep(10)
         self.disconnect()
 
     def on_timeout(self, status_code=None, data=None): #pylint: disable=no-self-use
         """timeout handling"""
-        print("{}: timeout. {} / {}".format(now(), status_code, data))
+        print(f"{now()}: timeout. {status_code} / {data}")
 
 def main():
     """Scan twitter stream for argument string"""
