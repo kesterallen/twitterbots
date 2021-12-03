@@ -53,7 +53,7 @@ class BotTweet:
                 auth_keys[name] = value
         keynames = ['APP_KEY', 'APP_SEC', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SEC']
         key_prefix = os.path.basename(self.botname)
-        keys = [auth_keys["{}{}".format(key_prefix, kn)] for kn in keynames]
+        keys = [auth_keys[f"{key_prefix}{kn}"] for kn in keynames]
         return keys
 
     def publish(self, debug=False):
@@ -98,7 +98,7 @@ def tweetify_text(textfile, use_lines=False):
             for line in lines:
                 if len(line) > MAX_TWEET_LEN:
                     line = line[:MAX_TWEET_LEN]
-                    print("trimming to {} chars: {}".format(MAX_TWEET_LEN, line))
+                    print(f"trimming to {MAX_TWEET_LEN} chars: {line}")
                 tweet = BotTweet(line)
                 tweets.append(tweet)
     else:

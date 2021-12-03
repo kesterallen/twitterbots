@@ -72,7 +72,7 @@ class ReplierStreamer(TwythonStreamer):
         name = data['user']['screen_name']
         url = "https://twitter.com/{0}/status/{1}".format(name, st_id)
         reply = random.choice(self.replies)
-        reply = "@{} {}".format(name, reply)
+        reply = f"@{name} {reply}"
         return st_id, url, reply
 
     def on_success(self, data):
@@ -167,7 +167,6 @@ def main():
                 socket.error,
                 TwythonError,
         ) as err:
-            #print("{} restarting: {}".format(now(), err))
             time.sleep(SLEEP_ERROR)
         except ReplierSleep:
             time.sleep(SLEEP_TWEET)

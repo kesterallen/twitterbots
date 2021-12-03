@@ -41,7 +41,7 @@ def main():
     else:
         track = "readtheplaque,alwaysreadtheplaque,#readtheplaque,#alwaysreadtheplaque"
 
-    print("Tracking '{}'".format(track))
+    print(f"Tracking '{track}'")
 
     while True:
         try:

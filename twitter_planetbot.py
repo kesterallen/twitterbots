@@ -180,7 +180,7 @@ def get_random_planet_image(planet_data, width, height, lat_box_side, max_pct_bl
 
     ignore = _ignore(hist)
     image = ImageOps.autocontrast(image, ignore=ignore)
-    image_fn = "{}.jpg".format(tmp_fn)
+    image_fn = f"{tmp_fn}.jpg"
     image.save(image_fn)
 
     if DEBUG:
