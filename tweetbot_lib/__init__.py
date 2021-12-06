@@ -13,8 +13,8 @@ class BotTweet:
 
     def __init__(self, word=None, botname=None):
         if botname is None:
-            fullname = inspect.stack()[-1][1] #original calling script's filename
-            self.botname = os.path.basename(fullname)
+            frameinfo = inspect.stack()[-1]
+            self.botname = os.path.basename(frameinfo.filename)
         else:
             self.botname = botname
 
@@ -41,39 +41,35 @@ class BotTweet:
     def __repr__(self):
         return self.str
 
-    def get_keys(self, keyfile="../keys.txt"):
+    def twitter_keys(self, keyfile="../keys.txt"):
         """Assume the keys file is ../keys.txt"""
-        keyfile_full = os.path.join(
-            os.path.dirname(__file__), keyfile)
-
         auth_keys = {}
+
+        keyfile_full = os.path.join(os.path.dirname(__file__), keyfile)
         with open(keyfile_full) as keys_fh:
             for row in keys_fh.readlines():
                 name, value = row.strip().split('=')
                 auth_keys[name] = value
+
         keynames = ['APP_KEY', 'APP_SEC', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SEC']
-        key_prefix = os.path.basename(self.botname)
-        keys = [auth_keys[f"{key_prefix}{kn}"] for kn in keynames]
+        keys = [auth_keys[f"{self.botname}{n}"] for n in keynames]
+
         return keys
 
     def publish(self, debug=False):
-        app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
-        twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
+        twitter = Twython(*self.twitter_keys())
         if debug:
             print(self.str)
-            return self.str
-        else:
-            return twitter.update_status(status=self.str)
+        return twitter.update_status(status=self.str)
 
     def publish_with_image(self, image_fn, debug=False):
-        app_key, app_secret, oauth_token, oauth_token_secret = self.get_keys()
-        twitter = Twython(app_key, app_secret, oauth_token, oauth_token_secret)
+        twitter = Twython(*self.twitter_keys())
         with open(image_fn, 'rb') as image:
             response = twitter.upload_media(media=image)
-        if debug:
-            print(response)
-        return twitter.update_status(
-            status=self.str, media_ids=[response['media_id']])
+            if debug:
+                print(response)
+            ids = [response['media_id']]
+            return twitter.update_status(status=self.str, media_ids=ids)
 
     def download_tweet_text(self, tweet_generate_url):
         resp = requests.get(tweet_generate_url)
@@ -86,9 +82,10 @@ def get_tweet_filename(filename):
 
 def tweetify_text(textfile, use_lines=False):
     """
-    Break the input string 'text' into MAX_TWEET_LEN-char-or-less BotTweet objects.
+    Break the input string 'text' into MAX_TWEET_LEN-char-or-less BotTweet
+    objects.
 
-    If use_lines is True, make one tweet per line in the file; otherwise
+    If use_lines is True, make one tweet per line in the file.
     """
     tweets = []
     if use_lines:
