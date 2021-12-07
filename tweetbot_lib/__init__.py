@@ -38,9 +38,7 @@ class BotTweet:
     def str(self):
         return " ".join(self.words)
 
-    def __repr__(self):
-        return self.str
-
+    @property
     def twitter_keys(self, keyfile="../keys.txt"):
         """Assume the keys file is ../keys.txt"""
         auth_keys = {}
@@ -57,13 +55,13 @@ class BotTweet:
         return keys
 
     def publish(self, debug=False):
-        twitter = Twython(*self.twitter_keys())
+        twitter = Twython(*self.twitter_keys)
         if debug:
             print(self.str)
         return twitter.update_status(status=self.str)
 
     def publish_with_image(self, image_fn, debug=False):
-        twitter = Twython(*self.twitter_keys())
+        twitter = Twython(*self.twitter_keys)
         with open(image_fn, 'rb') as image:
             response = twitter.upload_media(media=image)
             if debug:
@@ -76,9 +74,51 @@ class BotTweet:
         text = resp.json()['tweet']
         self.words = [text]
 
+    def __repr__(self):
+        return self.str
+
 def get_tweet_filename(filename):
     """ Assume the text file is in ../txt/ """
     return os.path.join(os.path.dirname(__file__), '../txt/', filename)
+
+def tweetify_by_lines(text_fh):
+    """
+    One line per tweet, truncated if necessary.
+    Returns a list of BotTweet objects.
+    """
+    tweets = []
+    lines = text_fh.readlines()
+    for line in lines:
+        if len(line) > MAX_TWEET_LEN:
+            line = line[:MAX_TWEET_LEN]
+        tweet = BotTweet(line)
+        tweets.append(tweet)
+    return tweets
+
+def tweetify_by_words(text_fh):
+    """
+    Make tweets by appending words from text_fh, staying below MAX_TWEET_LEN
+    characters in length.
+    Returns a list of BotTweet objects.
+    """
+    tweets = []
+    words = text_fh.read().split()
+
+    tweet = BotTweet()
+    # Break the text into tweet-sized chunks by adding words until the tweet is too long
+    #
+    for word in words:
+        if tweet.is_too_long:
+            extra_word = tweet.pop()
+            tweets.append(tweet)
+            tweet = BotTweet(extra_word)
+
+        tweet.append(word)
+
+    # Get the final tweet:
+    #
+    tweets.append(tweet)
+    return tweets
 
 def tweetify_text(textfile, use_lines=False):
     """
@@ -87,38 +127,11 @@ def tweetify_text(textfile, use_lines=False):
 
     If use_lines is True, make one tweet per line in the file.
     """
-    tweets = []
-    if use_lines:
-        # One line per tweet
-        with open(textfile) as text_fh:
-            lines = text_fh.readlines()
-            for line in lines:
-                if len(line) > MAX_TWEET_LEN:
-                    line = line[:MAX_TWEET_LEN]
-                    print(f"trimming to {MAX_TWEET_LEN} chars: {line}")
-                tweet = BotTweet(line)
-                tweets.append(tweet)
-    else:
-        # Read file into 'words' list:
-        #
-        with open(textfile) as text_fh:
-            text = text_fh.read()
-        words = text.split()
-
-        tweet = BotTweet()
-        # Break the text into tweet-sized chunks:
-        #
-        for word in words:
-            if tweet.is_too_long:
-                extra_word = tweet.pop()
-                tweets.append(tweet)
-                tweet = BotTweet(extra_word)
-
-            tweet.append(word)
-
-        # Get the last tweet:
-        #
-        tweets.append(tweet)
+    with open(textfile) as text_fh:
+        if use_lines:
+            tweets = tweetify_by_lines(text_fh)
+        else:
+            tweets = tweetify_by_words(text_fh)
 
     return tweets
 
