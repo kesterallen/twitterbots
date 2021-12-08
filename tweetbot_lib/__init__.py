@@ -8,6 +8,7 @@ from twython import Twython
 
 MAX_TWEET_LEN = 140
 
+
 class BotTweet:
     """Bot tweet module"""
 
@@ -64,12 +65,12 @@ class BotTweet:
         auth_keys = {}
 
         keyfile_full = os.path.join(os.path.dirname(__file__), keyfile)
-        with open(keyfile_full, encoding='utf-8') as keys_fh:
+        with open(keyfile_full, encoding="utf-8") as keys_fh:
             for row in keys_fh.readlines():
-                name, value = row.strip().split('=')
+                name, value = row.strip().split("=")
                 auth_keys[name] = value
 
-        keynames = ['APP_KEY', 'APP_SEC', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SEC']
+        keynames = ["APP_KEY", "APP_SEC", "OAUTH_TOKEN", "OAUTH_TOKEN_SEC"]
         keys = [auth_keys[f"{self.botname}{n}"] for n in keynames]
 
         return keys
@@ -84,11 +85,11 @@ class BotTweet:
     def publish_with_image(self, image_fn, debug=False):
         """Publish a tweet with an image"""
         twitter = Twython(*self.twitter_keys)
-        with open(image_fn, 'rb') as image:
+        with open(image_fn, "rb") as image:
             response = twitter.upload_media(media=image)
             if debug:
                 print(response)
-            ids = [response['media_id']]
+            ids = [response["media_id"]]
             return twitter.update_status(status=self.str, media_ids=ids)
 
     def download_tweet_text(self, tweet_api_url):
@@ -97,15 +98,17 @@ class BotTweet:
         with a 'tweet' key
         """
         resp = requests.get(tweet_api_url)
-        text = resp.json()['tweet']
+        text = resp.json()["tweet"]
         self.words = [text]
 
     def __repr__(self):
         return self.str
 
+
 def get_tweet_filename(filename):
-    """ Assume the text file is in ../txt/ """
-    return os.path.join(os.path.dirname(__file__), '../txt/', filename)
+    """Assume the text file is in ../txt/"""
+    return os.path.join(os.path.dirname(__file__), "../txt/", filename)
+
 
 def tweetify_text(textfile, use_lines=False):
     """
@@ -114,6 +117,7 @@ def tweetify_text(textfile, use_lines=False):
 
     If use_lines is True, make one tweet per line in the file.
     """
+
     def _tweets_by_line(fileh):
         """
         One file line per tweet, truncated to MAX_TWEET_LEN if necessary.
@@ -147,9 +151,10 @@ def tweetify_text(textfile, use_lines=False):
         tweets.append(tweet)
         return tweets
 
-    with open(textfile, encoding='utf-8') as fileh:
+    with open(textfile, encoding="utf-8") as fileh:
         tweets = _tweets_by_line(fileh) if use_lines else _tweets_by_word(fileh)
     return tweets
+
 
 def get_today_index(num_tweets, then):
     """
@@ -160,6 +165,7 @@ def get_today_index(num_tweets, then):
     today_index = td_since_start.days % num_tweets
     return today_index
 
+
 def get_today_tweet(tweets, then):
     """
     Get today's tweet text for the list 'tweets' starting at 'then'
@@ -167,6 +173,7 @@ def get_today_tweet(tweets, then):
     today_index = get_today_index(len(tweets), then)
     today_tweet = tweets[today_index]
     return today_tweet
+
 
 def parse_text_and_get_today_tweet(textfile, start_date, use_lines=False):
     """
