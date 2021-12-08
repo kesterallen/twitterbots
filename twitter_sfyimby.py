@@ -10,7 +10,7 @@ from twython import TwythonStreamer, Twython
 from twython.exceptions import TwythonError
 from tweetbot_lib import BotTweet
 
-keys = BotTweet().get_keys()
+keys = BotTweet().twitter_keys
 
 track_phrases = [
     "San Francisco housing crisis",
@@ -39,7 +39,7 @@ class YimbyStreamer(TwythonStreamer):
             reply = get_reply(data)
             print(current_time(), reply,
                 "https://twitter.com/{0}/status/{1}".format(data['user']['screen_name'], data['id']))
-            twitter = Twython(keys[0], keys[1], keys[2], keys[3])
+            twitter = Twython(*keys)
             try:
                 twitter.update_status(status=reply, in_reply_to_status_id=data['id'])
             except TwythonError:
@@ -68,7 +68,7 @@ def main():
 
     while True:
         try:
-            streamer = YimbyStreamer(keys[0], keys[1], keys[2], keys[3])
+            streamer = YimbyStreamer(*keys)
             streamer.statuses.filter(track=track)
         except (
             requests.exceptions.ConnectionError,

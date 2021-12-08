@@ -12,23 +12,35 @@ class BotTweet:
     """Bot tweet module"""
 
     def __init__(self, word=None, botname=None):
+        """Truncate word to MAX_TWEET_LEN if necessary"""
         if botname is None:
             frameinfo = inspect.stack()[-1]
             self.botname = os.path.basename(frameinfo.filename)
         else:
             self.botname = botname
 
-        self.words = [] if word is None else [word]
+        self.words = [] if word is None else [word[:MAX_TWEET_LEN]]
 
     def pop(self):
         return self.words.pop()
 
     def append(self, word):
-        self.words.append(word)
+        """Append 'word' to the self.words lits, truncating if necessary"""
+        self.words.append(word[:MAX_TWEET_LEN])
 
     @property
     def is_too_long(self):
+        """Does tweet length exceed MAX_TWEET_LEN"""
         return self.len > MAX_TWEET_LEN
+
+    def can_take_new_word(self, word):
+        """Will tweet be too long with new word"""
+        return not self.will_be_too_long(word)
+
+    def will_be_too_long(self, word):
+        assert(isinstance(word, str))
+        will_be_length = self.len + len(word)
+        return will_be_length > MAX_TWEET_LEN
 
     @property
     def len(self):
@@ -81,45 +93,6 @@ def get_tweet_filename(filename):
     """ Assume the text file is in ../txt/ """
     return os.path.join(os.path.dirname(__file__), '../txt/', filename)
 
-def tweetify_by_lines(text_fh):
-    """
-    One line per tweet, truncated if necessary.
-    Returns a list of BotTweet objects.
-    """
-    tweets = []
-    lines = text_fh.readlines()
-    for line in lines:
-        if len(line) > MAX_TWEET_LEN:
-            line = line[:MAX_TWEET_LEN]
-        tweet = BotTweet(line)
-        tweets.append(tweet)
-    return tweets
-
-def tweetify_by_words(text_fh):
-    """
-    Make tweets by appending words from text_fh, staying below MAX_TWEET_LEN
-    characters in length.
-    Returns a list of BotTweet objects.
-    """
-    tweets = []
-    words = text_fh.read().split()
-
-    tweet = BotTweet()
-    # Break the text into tweet-sized chunks by adding words until the tweet is too long
-    #
-    for word in words:
-        if tweet.is_too_long:
-            extra_word = tweet.pop()
-            tweets.append(tweet)
-            tweet = BotTweet(extra_word)
-
-        tweet.append(word)
-
-    # Get the final tweet:
-    #
-    tweets.append(tweet)
-    return tweets
-
 def tweetify_text(textfile, use_lines=False):
     """
     Break the input string 'text' into MAX_TWEET_LEN-char-or-less BotTweet
@@ -127,12 +100,41 @@ def tweetify_text(textfile, use_lines=False):
 
     If use_lines is True, make one tweet per line in the file.
     """
-    with open(textfile) as text_fh:
-        if use_lines:
-            tweets = tweetify_by_lines(text_fh)
-        else:
-            tweets = tweetify_by_words(text_fh)
+    def _tweets_by_line(text_fh):
+        """
+        One file line per tweet, truncated to MAX_TWEET_LEN if necessary.
+        Returns a list of BotTweet objects.
+        """
+        tweets = [BotTweet(l) for l in text_fh.readlines()]
+        return tweets
 
+    def _tweets_by_word(text_fh):
+        """
+        Make tweets by appending words from text_fh, staying below MAX_TWEET_LEN
+        characters in length.
+        Returns a list of BotTweet objects.
+        """
+
+        # Fill each tweet until it can't append another word witout getting too
+        # long. Then put that tweet into the output list and start a new tweet
+        # with the current word.
+        #
+        tweets = []
+        tweet = BotTweet()
+        for word in text_fh.read().split():
+            if tweet.can_take_new_word(word):
+                tweet.append(word)
+            else:
+                tweets.append(tweet)
+                tweet = BotTweet(word)
+
+        # Append the file's final tweet:
+        #
+        tweets.append(tweet)
+        return tweets
+
+    with open(textfile) as fh:
+        tweets = _tweets_by_line(fh) if use_lines else _tweets_by_word(fh)
     return tweets
 
 def get_today_index(num_tweets, then):

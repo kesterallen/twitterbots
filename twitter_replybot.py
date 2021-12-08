@@ -80,7 +80,7 @@ class ReplierStreamer(TwythonStreamer):
         if 'text' in data:
             st_id, url, reply = self._get_reply(data)
             print(f"{now()} {reply} {url}")
-            twy = Twython(*(self.keys))
+            twy = Twython(*self.keys)
             try:
                 if self.sendtweet:
                     twy.update_status(status=reply, in_reply_to_status_id=st_id)
@@ -155,7 +155,7 @@ def get_args():
 def main():
     """Run Streamer"""
     args = get_args()
-    keys = BotTweet(botname=args.botname).get_keys()
+    keys = BotTweet(botname=args.botname).twitter_keys
 
     while True:
         try:

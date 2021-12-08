@@ -45,7 +45,7 @@ def main():
 
     while True:
         try:
-            streamer = TweetStreamer(*(BotTweet().get_keys()))
+            streamer = TweetStreamer(*(BotTweet().twitter_keys))
             streamer.statuses.filter(track=track)
         except (
             requests.exceptions.ConnectionError,
