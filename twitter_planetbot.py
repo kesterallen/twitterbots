@@ -2,7 +2,7 @@
 Module to make images and descriptions of planets from the USGS planetary map
 server's CGI service.
 """
-import math
+from math import acos, cos, pi
 import random
 import sys
 import urllib
@@ -32,9 +32,8 @@ PLANETS = AttrDict({
     })
 })
 
-# Thanks to Trent Hare of the USGS for this service:
-#
 def usgs_url(planet_data, box, width, height):
+    """ Thanks to Trent Hare of the USGS for this service """
     return (
         "https://planetarymaps.usgs.gov/cgi-bin/mapserv?"
         "SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&"
@@ -52,8 +51,8 @@ class BoundingBox:
 
         # Adjust the lng (horizontal) size of the box by aspect ratio and
         # the latitude (so high-latitude images look right):
-        lat_rad = lng_lat_side.lat * math.pi / 180.0
-        lng_box_side = lng_lat_side.side * aspect_ratio / math.cos(abs(lat_rad))
+        lat_rad = lng_lat_side.lat * pi / 180.0
+        lng_box_side = lng_lat_side.side * aspect_ratio / cos(abs(lat_rad))
 
         self.lng_end = lng_lat_side.lng + lng_box_side
         self.lat_end = lng_lat_side.lat + lng_lat_side.side
@@ -78,8 +77,8 @@ class BoundingBox:
     @property
     def pretty_str(self):
         """More verbose string representation"""
-        return "latitude: %.1f longitude: %.1f, %.1f km wide" % (
-            self.lat, self.lng, self.box_height_km)
+        return(f"latitude: {self.lat:.1f} longitude: {self.lng:.1f}, "
+            f"{self.box_height_km:.1f} km wide")
 
     @property
     def lat_gmap(self):
@@ -99,8 +98,10 @@ def get_bounding_box(lat_box_side, aspect_ratio, km_per_lat_deg):
         # Math from http://mathworld.wolfram.com/SpherePointPicking.html
         rand_u = random.random()
         rand_v = random.random()
-        lng = 360.0 * rand_u # Range: [0.0, 360.0]
-        lat = math.acos(2.0 * rand_v - 1) * 180.0 / math.pi - 90.0 # Range: [-90.0, 90.0]
+        # lng range: [0.0, 360.0]
+        # lat range: [-90.0, 90.0]
+        lng = 360.0 * rand_u
+        lat = acos(2.0 * rand_v - 1) * 180.0 / pi - 90.0
         lng_lat_side = AttrDict({'lng': lng, 'lat': lat, 'side': lat_box_side})
 
         box = BoundingBox(lng_lat_side, aspect_ratio, km_per_lat_deg)
@@ -136,7 +137,7 @@ def _ignore(hist, offset=10, width=3.0):
     data_start = int(coeff[1] - width*coeff[2])
     data_end = int(coeff[1] + width*coeff[2])
 
-    # If the fit is weird, revert to very conservative values.
+    # If the fit is out of bounds, revert to very conservative values:
     if data_start < 0 or data_start > 255:
         data_start = 0
     if data_end < 0 or data_end > 255:
