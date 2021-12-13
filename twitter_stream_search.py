@@ -1,11 +1,11 @@
-"""Streaming search (grep) for twitter"""
+"""Streaming search for twitter"""
 
 import datetime
 import socket
 import sys
 import time
-
 import requests
+
 from twython import TwythonStreamer
 from tweetbot_lib import BotTweet
 
