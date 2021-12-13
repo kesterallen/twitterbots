@@ -14,23 +14,25 @@ from scipy import optimize
 from tweetbot_lib import BotTweet
 
 DEBUG = False
+DEFAULT_WIDTH = 1920
+DEFAULT_HEIGHT = 1080
 
 PLANETS = AttrDict(
     {
         "Venus": AttrDict(
             {
+                "botname": "venusbot",
                 "map": "/maps/venus/venus_simp_cyl.map",
                 "layers": "MAGELLAN",
-                "botname": "venusbot",
                 "lat_box_side_degrees": (0.1, 3.0),
                 "km_per_lat_deg": 105.6,
             }
         ),
         "Mercury": AttrDict(
             {
+                "botname": "mercurybot",
                 "map": "/maps/mercury/mercury_simp_cyl.map",
                 "layers": "MESSENGER_Color",
-                "botname": "mercurybot",
                 "lat_box_side_degrees": (1.0, 20.0),
                 "km_per_lat_deg": 42.58,
             }
@@ -39,34 +41,65 @@ PLANETS = AttrDict(
 )
 
 
-def usgs_url(planet_data, box, width, height):
-    """Thanks to Trent Hare of the USGS for this service"""
-    return (
-        "https://planetarymaps.usgs.gov/cgi-bin/mapserv?"
-        "SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&"
-        "FORMAT=image%2Fjpeg&"
-        f"LAYERS={planet_data.layers}&BBOX={box.str}&"
-        f"WIDTH={width}&HEIGHT={height}&map={planet_data.map}"
-    )
-
-
 class BoundingBox:
     """A bounding box in latitude/longitude with the correct aspect ratio"""
 
-    def __init__(self, lng_lat_side, aspect_ratio, km_per_lat_deg):
-        """Create a new box"""
-        self.lng = lng_lat_side.lng
-        self.lat = lng_lat_side.lat
+    def __init__(self, lat_box_side, aspect_ratio, km_per_lat_deg, loc=None):
+        """
+        Create a new box, adjusting the lng (horizontal) size of the box by
+        aspect ratio and the latitude (so high-latitude images look right).
+        If specified, loc must have .lat and .lng attributes
+        """
+        assert loc is None or ("lng" in loc and "lat" in loc)
 
-        # Adjust the lng (horizontal) size of the box by aspect ratio and
-        # the latitude (so high-latitude images look right):
-        lat_rad = lng_lat_side.lat * pi / 180.0
-        lng_box_side = lng_lat_side.side * aspect_ratio / cos(abs(lat_rad))
+        self.lat = BoundingBox._rand_lat() if loc is None else loc.lat
+        self.lat_end = self.lat + lat_box_side
 
-        self.lng_end = lng_lat_side.lng + lng_box_side
-        self.lat_end = lng_lat_side.lat + lng_lat_side.side
+        self.lng = BoundingBox._rand_lng() if loc is None else loc.lng
+        lng_box_side = lat_box_side * aspect_ratio / cos(abs(self.lat * pi / 180.0))
+        self.lng_end = self.lng + lng_box_side
 
         self.km_per_lat_deg = km_per_lat_deg
+
+    @classmethod
+    def _rand_lng(cls):
+        """
+        lng range: [0.0, 360.0]
+        Math source: http://mathworld.wolfram.com/SpherePointPicking.html
+        """
+        rand_u = random.random()
+        return 360.0 * rand_u
+
+    @classmethod
+    def _rand_lat(cls):
+        """
+        lat range: [-90.0, 90.0]
+        Math source: http://mathworld.wolfram.com/SpherePointPicking.html
+        """
+        rand_v = random.random()
+        return acos(2.0 * rand_v - 1) * 180.0 / pi - 90.0
+
+    def __bool__(self):
+        return not self.is_out_of_range
+
+    @classmethod
+    def get_rand(cls, lat_box_side, aspect_ratio, km_per_lat_deg, max_tries=100):
+        """
+        Get a bounding box that is lat_box_side high and within bounds (all 4
+        corners in the lat range [-90, 90] and the lng range [0, 360]).
+        Bails out after max_tries if the geometry is pathological (gigantic
+        lat_box_side?).
+
+        Math source: http://mathworld.wolfram.com/SpherePointPicking.html
+
+        """
+        tries = 0
+        box = BoundingBox(lat_box_side, aspect_ratio, km_per_lat_deg)
+        while box.is_out_of_range and tries < max_tries:
+            box = BoundingBox(lat_box_side, aspect_ratio, km_per_lat_deg)
+            tries += 1
+
+        return box
 
     @property
     def box_height_km(self):
@@ -74,7 +107,7 @@ class BoundingBox:
         return self.km_per_lat_deg * (self.lat_end - self.lat)
 
     @property
-    def is_bad(self):
+    def is_out_of_range(self):
         """Are the end points for latitude or longitude incorrect"""
         return self.lng_end >= 360.0 or abs(self.lat_end) >= 90.0
 
@@ -100,25 +133,6 @@ class BoundingBox:
     def lng_gmap(self):
         """Google Maps longitude runs from -180 to 180, not 0 to 360"""
         return -180.0 + 0.5 * (self.lng + self.lng_end)
-
-
-def get_bounding_box(lat_box_side, aspect_ratio, km_per_lat_deg):
-    """Get a bounding box that is lat_box_side high and within bounds"""
-    is_bad_box = True
-    while is_bad_box:
-        # Math from http://mathworld.wolfram.com/SpherePointPicking.html
-        rand_u = random.random()
-        rand_v = random.random()
-        # lng range: [0.0, 360.0]
-        # lat range: [-90.0, 90.0]
-        lng = 360.0 * rand_u
-        lat = acos(2.0 * rand_v - 1) * 180.0 / pi - 90.0
-        lng_lat_side = AttrDict({"lng": lng, "lat": lat, "side": lat_box_side})
-
-        box = BoundingBox(lng_lat_side, aspect_ratio, km_per_lat_deg)
-        is_bad_box = box.is_bad
-
-    return box
 
 
 def _gauss(x, *p):
@@ -166,22 +180,35 @@ def _ignore(hist, offset=10, width=3.0):
     return ignore
 
 
-def _get_image(lat_box_side, width, height, planet_data):
+def _usgs_url(planet, box, width, height):
+    """Thanks to Trent Hare of the USGS for this service"""
+    return (
+        "https://planetarymaps.usgs.gov/cgi-bin/mapserv?"
+        "SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&"
+        "FORMAT=image%2Fjpeg&"
+        f"LAYERS={planet.layers}&BBOX={box.str}&"
+        f"WIDTH={width}&HEIGHT={height}&map={planet.map_}"
+    )
+
+
+def _get_image(lat_box_side, planet, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     """Get a subimage to check for black pixel amount"""
     aspect_ratio = float(width) / float(height)
-    box = get_bounding_box(lat_box_side, aspect_ratio, planet_data.km_per_lat_deg)
-    url = usgs_url(planet_data, box, width, height)
+    box = BoundingBox.get_rand(lat_box_side, aspect_ratio, planet.km_per_lat_deg)
+    url = _usgs_url(planet, box, width, height)
     tmp_fn, headers = urllib.request.urlretrieve(url)  # pylint: disable=unused-variable
     image = Image.open(tmp_fn).convert("L")
     return (box, url, tmp_fn, image)
 
 
-def random_planet_image(lat_box_side, width, height, planet_data, max_pct_black=0.5):
+def random_planet_image(planet, max_pct_black=0.5):
     """Get a subimage without too many black pixels"""
+
+    lat_box_side = random.uniform(*planet.lat_box_side_degrees)
 
     image_too_dark = True
     while image_too_dark:
-        box, url, tmp_fn, image = _get_image(lat_box_side, width, height, planet_data)
+        box, url, tmp_fn, image = _get_image(lat_box_side, planet)
         hist = image.histogram()
 
         num_black = hist[0]
@@ -205,19 +232,14 @@ def main():
     """
     planet_name = sys.argv[1]
     assert planet_name in PLANETS
-    planet_data = PLANETS[planet_name]
+    planet = PLANETS[planet_name]
 
-    width = 1920
-    height = 1080
-    lat_box_side = random.uniform(*PLANETS[planet_name].lat_box_side_degrees)
-
-    box, url, image_fn = random_planet_image(lat_box_side, width, height, planet_data)
-
+    box, url, image_fn = random_planet_image(planet)
     if DEBUG:
         print(box.pretty_str, url)
 
     tweet_text = f"{planet_name}, {box.pretty_str}, {url}"
-    twitter = BotTweet(word=tweet_text, botname=PLANETS[planet_name]["botname"])
+    twitter = BotTweet(word=tweet_text, botname=planet.botname)
 
     if not DEBUG:
         twitter.publish_with_image(image_fn)
