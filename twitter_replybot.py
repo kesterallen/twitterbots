@@ -98,7 +98,7 @@ class ReplierStreamer(TwythonStreamer):
                     print(f"Debug: skip duplicate tweet '{reply}'")
             raise ReplierSleep()
 
-    def on_error(self, status_code, data):
+    def on_error(self, status_code, data, headers=None):
         """Response to failed scan."""
         print(f"{now()} in on_error: {status_code} {data}")
         time.sleep(SLEEP_ERROR)
@@ -166,7 +166,7 @@ def main():
                 requests.exceptions.ChunkedEncodingError,
                 socket.error,
                 TwythonError,
-        ) as err:
+        ):
             time.sleep(SLEEP_ERROR)
         except ReplierSleep:
             time.sleep(SLEEP_TWEET)

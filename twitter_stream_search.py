@@ -23,8 +23,7 @@ class TweetStreamer(TwythonStreamer):
         if "text" in data:
             name = data["user"]["screen_name"]
             url = f"https://twitter.com/{name}/status/{data['id']}"
-            text = data["text"]
-            print(f"\n{now()} {name} {url}\n{text}")
+            print(f"""\n{now()} {name} {url}\n{data["text"]}""")
 
     def on_error(
         self, status_code, data
