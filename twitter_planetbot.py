@@ -187,7 +187,7 @@ def _usgs_url(planet, box, width, height):
         "SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&"
         "FORMAT=image%2Fjpeg&"
         f"LAYERS={planet.layers}&BBOX={box.str}&"
-        f"WIDTH={width}&HEIGHT={height}&map={planet.map_}"
+        f"WIDTH={width}&HEIGHT={height}&map={planet.map}"
     )
 
 
