@@ -27,7 +27,7 @@ class BotTweet:
         return self.words.pop()
 
     def append(self, word):
-        """Append 'word' to the self.words lits, truncating if necessary"""
+        """Append 'word' to the self.words list, truncating if necessary"""
         self.words.append(word[:MAX_TWEET_LEN])
 
     @property
@@ -36,11 +36,11 @@ class BotTweet:
         return self.len > MAX_TWEET_LEN
 
     def can_take_new_word(self, word):
-        """Will tweet not be too long with new word"""
+        """Will tweet be under the length limit after adding a new word"""
         return not self.will_be_too_long(word)
 
     def will_be_too_long(self, word):
-        """Will tweet be too long with new word"""
+        """Will tweet be too long after adding a new word"""
         assert isinstance(word, str)
         will_be_length = self.len + len(word)
         return will_be_length > MAX_TWEET_LEN
@@ -57,11 +57,14 @@ class BotTweet:
 
     @property
     def twitter_keys(self):
-        """Assume the keys file is ../keys.txt"""
-        return self.twitter_keys_fn()
+        """Property for the default twitter_keys_from_file file location"""
+        return self.twitter_keys_from_file()
 
-    def twitter_keys_fn(self, keyfile="../keys.txt"):
-        """Keys"""
+    def twitter_keys_from_file(self, keyfile="../keys.txt"):
+        """
+        Keys for twitter bot authorization. Assume the keys file is at the
+        location ../keys.txt unless specified otherwise.
+        """
         auth_keys = {}
 
         keyfile_full = os.path.join(os.path.dirname(__file__), keyfile)
