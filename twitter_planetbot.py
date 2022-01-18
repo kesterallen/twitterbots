@@ -21,6 +21,7 @@ PLANETS = AttrDict(
     {
         "Venus": AttrDict(
             {
+                "name": "venus",
                 "botname": "venusbot",
                 "map": "/maps/venus/venus_simp_cyl.map",
                 "layers": "MAGELLAN",
@@ -30,6 +31,7 @@ PLANETS = AttrDict(
         ),
         "Mercury": AttrDict(
             {
+                "name": "mercury",
                 "botname": "mercurybot",
                 "map": "/maps/mercury/mercury_simp_cyl.map",
                 "layers": "MESSENGER_Color",
@@ -112,9 +114,14 @@ class BoundingBox:
         return self.lng_end >= 360.0 or abs(self.lat_end) >= 90.0
 
     @property
-    def str(self):
-        """String representation"""
+    def str_precise(self):
+        """Precise string representation, full precision on lat/lng"""
         return f"{self.lng},{self.lat},{self.lng_end},{self.lat_end}"
+
+    @property
+    def str(self):
+        """String representation for twitter's link shortener. Short lat/lng"""
+        return f"{self.lng:.2f},{self.lat:.2f},{self.lng_end:.2f},{self.lat_end:.2f}"
 
     @property
     def pretty_str(self):
@@ -180,23 +187,32 @@ def _ignore(hist, offset=10, width=3.0):
     return ignore
 
 
-def _usgs_url(planet, box, width, height):
+def _usgs_url(planet, box, width, height, use_shorter_redirect=True, precise=True):
     """Thanks to Trent Hare of the USGS for this service"""
-    return (
-        "https://planetarymaps.usgs.gov/cgi-bin/mapserv?"
-        "SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&"
-        "FORMAT=image%2Fjpeg&"
-        f"LAYERS={planet.layers}&BBOX={box.str}&"
-        f"WIDTH={width}&HEIGHT={height}&map={planet.map}"
-    )
 
+    box_str = box.str_precise if precise else box.str
+    if use_shorter_redirect:
+        url = f"https://kesterallen.com/{planet.name}/{box_str}/{width}/{height}"
+    else:
+        url = (
+            "https://planetarymaps.usgs.gov/cgi-bin/mapserv?"
+            "SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&"
+            "FORMAT=image%2Fjpeg&"
+            f"LAYERS={planet.layers}&"
+            f"BBOX={box_str}&"
+            f"WIDTH={width}&"
+            f"HEIGHT={height}&"
+            f"map={planet.map}"
+        )
+    return url
 
 def _get_image(lat_box_side, planet, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     """Get a subimage to check for black pixel amount"""
     aspect_ratio = float(width) / float(height)
     box = BoundingBox.get_rand(lat_box_side, aspect_ratio, planet.km_per_lat_deg)
-    url = _usgs_url(planet, box, width, height)
-    tmp_fn, headers = urllib.request.urlretrieve(url)  # pylint: disable=unused-variable
+    url = _usgs_url(planet, box, width, height, precise=False)
+    url_precise = _usgs_url(planet, box, width, height, precise=True)
+    tmp_fn, headers = urllib.request.urlretrieve(url_precise)  # pylint: disable=unused-variable
     image = Image.open(tmp_fn).convert("L")
     return (box, url, tmp_fn, image)
 
