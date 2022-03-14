@@ -103,8 +103,11 @@ def parse_data(data):
             except ValueError:
                 pass
         description = {t: _desc(daily[t]) for t in ("Day", "Night")}
-        description["night"] = description["Night"].lower()  # convert to lower case for DAILY_TMPL
-        description["Headline"] = headline  # add headline to description dict for use in TODAY_TMPL
+        # convert to lower case for DAILY_TMPL
+        description["night"] = description["Night"].lower()
+        # add headline to description dict for use in TODAY_TMPL
+        description["Headline"] = headline
+
         high = daily["Temperature"]["Maximum"]["Value"]
         low = daily["Temperature"]["Minimum"]["Value"]
 
