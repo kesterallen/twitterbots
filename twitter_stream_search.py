@@ -56,10 +56,12 @@ def main():
             streamer.statuses.filter(track=track)
         except (
             requests.exceptions.ConnectionError,
-            requests.exceptions.ChunkedEncodingError,
             socket.error,
         ) as err:
             print(now(), "restarting ", type(err).__name__, err)
+            time.sleep(60)
+        except (requests.exceptions.ChunkedEncodingError):
+            # ignore ChunkedEncodingError errors since they're putting a lot of noise on the screen
             time.sleep(60)
 
 
