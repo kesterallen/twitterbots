@@ -25,8 +25,8 @@ DATE_FORMATS = ["%Y-%m-%dT%H:%M:%S-08:00", "%Y-%m-%dT%H:%M:%S-07:00"]
 #        Tonight: L 50 Clouds, a little rain late
 #
 TODAY_TMPL = """
-<br/>Today: H {high:.0f} {description[Day]}
-<br/>Tonight: L {low:.0f} {description[Night]}
+<br/>Today: H {h:.0f} {desc[Day]}
+<br/>Tonight: L {l:.0f} {desc[Night]}
 <br/>
 """
 
@@ -34,11 +34,12 @@ TODAY_TMPL = """
 #        Fr: H 60 L 47
 #        Mostly sunny then clear
 #
-DAILY_TMPL = """{day:.2} {high:.0f}-{low:.0f} {description[Day]} then {description[night]}""" 
+DAILY_TMPL = """{d:.2} {h:.0f}-{l:.0f} {desc[Day]} then {desc[night]}"""
+
 
 def get_url():
     """Get the URL with app key for AccuWeather"""
-    with open("accuweather_key.txt", encoding='UTF-8') as key_file:
+    with open("accuweather_key.txt", encoding="UTF-8") as key_file:
         app_key = key_file.readline().split(" ")[1].strip()
 
     base_url = "http://dataservice.accuweather.com/forecasts/v1/daily/5day/{}?apikey={}"
@@ -64,12 +65,12 @@ def send_email(headline, forecasts):
         html_content=body,
     )
 
-    with open("accuweather_key.txt", encoding='UTF-8') as key_file:
+    with open("accuweather_key.txt", encoding="UTF-8") as key_file:
         _ = key_file.readline()
         sendgrid_key = key_file.readline().split(" ")[1].strip()
     sendgrid = SendGridAPIClient(sendgrid_key)
     try:
-        response = sendgrid.send(message)
+        _ = sendgrid.send(message)  # hide 'response' into '_' for pylint
     except UnauthorizedError as err:
         print(f"Sendgrid error {err}, printing report")
         print(forecast_txt.replace(line_break, ""))
@@ -77,12 +78,13 @@ def send_email(headline, forecasts):
 
 def _desc(forecast):
     """Get the description of the day and precipitation message, if any"""
-    msg = ""
+    msgs = []
     if "HasPrecipitation" in forecast:
         for precip_key in PRECIP_KEYS:
             if precip_key in forecast:
-                msg += forecast[precip_key]
-    return f"{forecast['IconPhrase'].strip()} {msg.strip()}"
+                msgs.append(forecast[precip_key].strip())
+    msg = f"{forecast['IconPhrase'].strip()} {' '.join(msgs)}".strip()
+    return msg
 
 
 def parse_data(data):
@@ -101,13 +103,13 @@ def parse_data(data):
             except ValueError:
                 pass
         description = {t: _desc(daily[t]) for t in ("Day", "Night")}
-        description["night"] = description["Night"].lower()  # lower case for DAILY_TMPL
-        description["Headline"] = headline  # pack this here for TODAY_TMPL
+        description["night"] = description["Night"].lower()  # convert to lower case for DAILY_TMPL
+        description["Headline"] = headline  # add headline to description dict for use in TODAY_TMPL
         high = daily["Temperature"]["Maximum"]["Value"]
         low = daily["Temperature"]["Minimum"]["Value"]
 
         tmpl = DAILY_TMPL if i > 0 else TODAY_TMPL
-        forecast = tmpl.format(day=day, description=description, high=high, low=low)
+        forecast = tmpl.format(d=day, desc=description, h=high, l=low)
         forecasts.append(forecast)
 
     return headline, forecasts
