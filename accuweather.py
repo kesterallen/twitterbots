@@ -18,7 +18,6 @@ PRECIP_KEYS = (
     "PrecipitationIntensity",
     "PrecipitationType",
 )
-DATE_FORMATS = ["%Y-%m-%dT%H:%M:%S-08:00", "%Y-%m-%dT%H:%M:%S-07:00"]
 
 # Template to make a detailed output for today:
 #        Today: H 63 Some sun, then clouds
@@ -34,7 +33,7 @@ TODAY_TMPL = """
 #        Fr: H 60 L 47
 #        Mostly sunny then clear
 #
-DAILY_TMPL = """{d:.2} {h:.0f}-{l:.0f} {desc[Day]} then {desc[night]}"""
+DAILY_TMPL = """{dow} {h:.0f}-{l:.0f} {desc[Day]} then {desc[night]}"""
 
 
 def get_url():
@@ -43,7 +42,6 @@ def get_url():
         app_key = key_file.readline().split(" ")[1].strip()
 
     base_url = "http://dataservice.accuweather.com/forecasts/v1/daily/5day/{}?apikey={}"
-    # base_url = "http://dataservice.accuweather.com/forecasts/v1/hourly/12hour/{}?apikey={}"
     berkeley_location = "39625_PC"
     url = base_url.format(berkeley_location, app_key)
     return url
@@ -86,7 +84,6 @@ def _desc(forecast):
     msg = f"{forecast['IconPhrase'].strip()} {' '.join(msgs)}".strip()
     return msg
 
-
 def parse_data(data):
     """Get the forecast data out of AccuWeather's json"""
     try:
@@ -97,22 +94,16 @@ def parse_data(data):
 
     forecasts = []
     for i, daily in enumerate(data["DailyForecasts"]):
-        for date_format in DATE_FORMATS:
-            try:
-                day = dt.strptime(daily["Date"], date_format).strftime("%A")
-            except ValueError:
-                pass
         description = {t: _desc(daily[t]) for t in ("Day", "Night")}
-        # convert to lower case for DAILY_TMPL
+        # convert to lower case for daily template
         description["night"] = description["Night"].lower()
-        # add headline to description dict for use in TODAY_TMPL
-        description["Headline"] = headline
 
         high = daily["Temperature"]["Maximum"]["Value"]
         low = daily["Temperature"]["Minimum"]["Value"]
 
         tmpl = DAILY_TMPL if i > 0 else TODAY_TMPL
-        forecast = tmpl.format(d=day, desc=description, h=high, l=low)
+        dow = dt.fromisoformat(daily["Date"]).strftime("%A")[:2]
+        forecast = tmpl.format(dow=dow, desc=description, h=high, l=low)
         forecasts.append(forecast)
 
     return headline, forecasts
