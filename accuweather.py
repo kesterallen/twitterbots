@@ -81,8 +81,8 @@ def _desc(forecast):
         for precip_key in PRECIP_KEYS:
             if precip_key in forecast:
                 msgs.append(forecast[precip_key].strip())
-    msg = f"{forecast['IconPhrase'].strip()} {' '.join(msgs)}".strip()
-    return msg
+    msg = f"{forecast['IconPhrase'].strip()} {' '.join(msgs)}"
+    return msg.capitalize().strip()
 
 def parse_data(data):
     """Get the forecast data out of AccuWeather's json"""
