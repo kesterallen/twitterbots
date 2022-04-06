@@ -48,20 +48,21 @@ def main():
     else:
         track = "readtheplaque,alwaysreadtheplaque,#readtheplaque,#alwaysreadtheplaque"
 
-    print(f"Tracking '{track}'")
+    start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    print(f"Tracking '{track}' starting {start_time}")
 
     while True:
         try:
             streamer = TweetStreamer(*(BotTweet().twitter_keys))
             streamer.statuses.filter(track=track)
+        except requests.exceptions.ChunkedEncodingError:
+            # ignore ChunkedEncodingError errors since they're putting a lot of noise on the screen
+            time.sleep(60)
         except (
             requests.exceptions.ConnectionError,
             socket.error,
         ) as err:
             print(now(), "restarting ", type(err).__name__, err)
-            time.sleep(60)
-        except (requests.exceptions.ChunkedEncodingError):
-            # ignore ChunkedEncodingError errors since they're putting a lot of noise on the screen
             time.sleep(60)
 
 
