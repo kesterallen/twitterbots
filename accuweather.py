@@ -39,11 +39,10 @@ DAILY_TMPL = """{dow} {h:.0f}-{l:.0f} {desc[Day]} then {desc[night]}"""
 def get_url():
     """Get the URL with app key for AccuWeather"""
     with open("accuweather_key.txt", encoding="UTF-8") as key_file:
-        app_key = key_file.readline().split(" ")[1].strip()
+        key = key_file.readline().split(" ")[1].strip()
 
-    base_url = "http://dataservice.accuweather.com/forecasts/v1/daily/5day/{}?apikey={}"
-    berkeley_location = "39625_PC"
-    url = base_url.format(berkeley_location, app_key)
+    loc = "39625_PC" # berkeley
+    url = f"http://dataservice.accuweather.com/forecasts/v1/daily/5day/{loc}?apikey={key}"
     return url
 
 
