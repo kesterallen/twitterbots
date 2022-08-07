@@ -26,8 +26,8 @@ def main():
     # submitter, see Models.py:Plaque:tweet_to_plaque_submitter in
     # https://github.com/kesterallen/read-the-plaque)
     #
-    if submitter_tweet_text := resp_json["submitter_tweet"]:
-        twitter = BotTweet(submitter_tweet_text)
+    if submitter_tweet := resp_json["submitter_tweet"]:
+        twitter.set_text(submitter_tweet)
         twitter.publish()
 
 

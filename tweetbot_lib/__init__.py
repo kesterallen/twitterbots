@@ -30,11 +30,6 @@ class BotTweet:
         """Append 'word' to the self.words list, truncating if necessary"""
         self.words.append(word[:MAX_TWEET_LEN])
 
-    @property
-    def is_too_long(self):
-        """Does tweet length exceed MAX_TWEET_LEN"""
-        return self.len > MAX_TWEET_LEN
-
     def can_take_new_word(self, word):
         """Will tweet be under the length limit after adding a new word"""
         return not self.will_be_too_long(word)
@@ -45,10 +40,19 @@ class BotTweet:
         will_be_length = self.len + len(word)
         return will_be_length > MAX_TWEET_LEN
 
+    def set_text(self, text):
+        """ Set the words array to input text """
+        self.words = [text]
+
     @property
     def len(self):
         """Length of tweet text"""
         return len(self.str)
+
+    @property
+    def is_too_long(self):
+        """Does tweet length exceed MAX_TWEET_LEN"""
+        return self.len > MAX_TWEET_LEN
 
     @property
     def str(self):
@@ -121,17 +125,17 @@ def tweetify_text(textfile, use_lines=False):
     If use_lines is True, make one tweet per line in the file.
     """
 
-    def _tweets_by_line(fileh):
+    def _tweets_by_line(file_):
         """
         One file line per tweet, truncated to MAX_TWEET_LEN if necessary.
         Returns a list of BotTweet objects.
         """
-        tweets = [BotTweet(l) for l in fileh.readlines()]
+        tweets = [BotTweet(l) for l in file_.readlines()]
         return tweets
 
-    def _tweets_by_word(fileh):
+    def _tweets_by_word(file_):
         """
-        Make tweets by appending words from fileh, staying below MAX_TWEET_LEN
+        Make tweets by appending words from file_, staying below MAX_TWEET_LEN
         characters in length.
         Returns a list of BotTweet objects.
         """
@@ -142,7 +146,7 @@ def tweetify_text(textfile, use_lines=False):
         #
         tweets = []
         tweet = BotTweet()
-        for word in fileh.read().split():
+        for word in file_.read().split():
             if tweet.can_take_new_word(word):
                 tweet.append(word)
             else:
@@ -154,8 +158,8 @@ def tweetify_text(textfile, use_lines=False):
         tweets.append(tweet)
         return tweets
 
-    with open(textfile, encoding="utf-8") as fileh:
-        tweets = _tweets_by_line(fileh) if use_lines else _tweets_by_word(fileh)
+    with open(textfile, encoding="utf-8") as file_:
+        tweets = _tweets_by_line(file_) if use_lines else _tweets_by_word(file_)
     return tweets
 
 
