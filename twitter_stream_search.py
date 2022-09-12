@@ -25,12 +25,11 @@ class TweetStreamer(TwythonStreamer):
             url = f"https://twitter.com/{name}/status/{data['id']}"
             print(f"""\n{now()} {name} {url}\n{data["text"]}""")
 
-    def on_error(
-        self, status_code, data
-    ):  # pylint: disable=no-self-use,arguments-differ
+    # pylint: disable=no-self-use,signature-differs
+    def on_error(self, status_code, data, headers):
         """error handling"""
         print(f"{now()}: in on_error")
-        print(status_code, data)
+        print(status_code, data, headers)
         time.sleep(10)
         self.disconnect()
 
