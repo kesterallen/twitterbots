@@ -4,7 +4,7 @@ import datetime
 import socket
 import sys
 import time
-import requests
+from requests import exceptions as rexceptions
 
 from twython import TwythonStreamer
 from tweetbot_lib import BotTweet
@@ -28,9 +28,8 @@ class TweetStreamer(TwythonStreamer):
     # pylint: disable=no-self-use,signature-differs
     def on_error(self, status_code, data, headers):
         """error handling"""
-        print(f"{now()}: in on_error")
-        print(status_code, data, headers)
-        time.sleep(10)
+        print(f"{now()}: in on_error {status_code}")
+        time.sleep(30)
         self.disconnect()
 
     def on_timeout(
@@ -54,13 +53,10 @@ def main():
         try:
             streamer = TweetStreamer(*(BotTweet().twitter_keys))
             streamer.statuses.filter(track=track)
-        except requests.exceptions.ChunkedEncodingError:
+        except rexceptions.ChunkedEncodingError:
             # ignore ChunkedEncodingError errors since they're putting a lot of noise on the screen
             time.sleep(60)
-        except (
-            requests.exceptions.ConnectionError,
-            socket.error,
-        ) as err:
+        except (rexceptions.ConnectionError, socket.error) as err:
             print(now(), "restarting ", type(err).__name__, err)
             time.sleep(60)
 
