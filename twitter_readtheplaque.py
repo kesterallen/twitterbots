@@ -1,4 +1,6 @@
 """ Set the featured plaque for the day and tweet about it """
+
+from mastodon import Mastodon
 import requests
 from tweetbot_lib import BotTweet
 
@@ -8,6 +10,8 @@ URLS = {
     "TWEET": URL_PREF + "tweet",
     "GEOJSON": URL_PREF + "featured/geojson",
 }
+MASTODON_TOKEN_FILE = "/home/kallen/src/twitterbots/txt/mastodon_rtp_token.secret"
+MASTODON_API_BASE_URL= "https://botsin.space/"
 
 
 def main():
@@ -29,6 +33,12 @@ def main():
     if submitter_tweet := resp_json["submitter_tweet"]:
         twitter.set_text(submitter_tweet)
         twitter.publish()
+
+    mastodon = Mastodon(
+        access_token=MASTODON_TOKEN_FILE,
+        api_base_url=MASTODON_API_BASE_URL,
+    )
+    mastodon.status_post(resp_json["tweet"])
 
 
 if __name__ == "__main__":
