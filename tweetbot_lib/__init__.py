@@ -85,15 +85,26 @@ class BotTweet:
 
         return keys
 
-    def publish_mastodon(self, name, debug=False):
-        """Publish to mastodon"""
-        mastodon = Mastodon(
+    def _get_mastodon(self, name):
+        return Mastodon(
             access_token=get_mastodon_token_filename(name),
             api_base_url=MASTODON_API_BASE_URL,
         )
+
+    def publish_mastodon(self, name, debug=False):
+        """Publish to mastodon"""
         if debug:
             print(self.str)
+        mastodon = self._get_mastodon(name)
         mastodon.status_post(self.str)
+
+    def publish_with_image_mastodon(self, name, image_fn, debug=False):
+        """Publish to mastodon with an image"""
+        if debug:
+            print(self.str)
+        mastodon = self._get_mastodon(name)
+        media_dict = mastodon.media_post(mime_type="image/jpeg", media_file=image_fn)
+        mastodon.status_post(self.str, media_ids=media_dict)
 
     def publish(self, debug=False):
         """Publish a tweet"""
