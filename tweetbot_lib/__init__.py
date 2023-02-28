@@ -3,10 +3,13 @@
 import datetime
 import inspect
 import os
+from mastodon import Mastodon
 import requests
 from twython import Twython
 
 MAX_TWEET_LEN = 140
+
+MASTODON_API_BASE_URL = "https://botsin.space/"
 
 
 class BotTweet:
@@ -41,7 +44,7 @@ class BotTweet:
         return will_be_length > MAX_TWEET_LEN
 
     def set_text(self, text):
-        """ Set the words array to input text """
+        """Set the words array to input text"""
         self.words = [text]
 
     @property
@@ -82,6 +85,16 @@ class BotTweet:
 
         return keys
 
+    def publish_mastodon(self, name, debug=False):
+        """Publish to mastodon"""
+        mastodon = Mastodon(
+            access_token=get_mastodon_token_filename(name),
+            api_base_url=MASTODON_API_BASE_URL,
+        )
+        if debug:
+            print(self.str)
+        mastodon.status_post(self.str)
+
     def publish(self, debug=False):
         """Publish a tweet"""
         twitter = Twython(*self.twitter_keys)
@@ -112,9 +125,16 @@ class BotTweet:
         return self.str
 
 
+def get_mastodon_token_filename(name):
+    """Assume the text file is in ../txt/"""
+    return os.path.join(
+        os.path.dirname(__file__), f"../txt/mastodon_{name}_token.secret"
+    )
+
+
 def get_tweet_filename(filename):
     """Assume the text file is in ../txt/"""
-    return os.path.join(os.path.dirname(__file__), "../txt/", filename)
+    return os.path.join(os.path.dirname(__file__), f"../txt/{filename}")
 
 
 def tweetify_text(textfile, use_lines=False):
