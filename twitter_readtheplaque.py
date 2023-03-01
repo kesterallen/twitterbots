@@ -22,6 +22,7 @@ def main():
 
     twitter = BotTweet(resp_json["tweet"])
     twitter.publish()
+    twitter.publish_mastodon("rtp")
 
     # Send a tweet to the submitter (if the plaque's geojson specifies a
     # submitter, see Models.py:Plaque:tweet_to_plaque_submitter in
@@ -30,7 +31,6 @@ def main():
     if submitter_tweet := resp_json["submitter_tweet"]:
         twitter.set_text(submitter_tweet)
         twitter.publish()
-        twitter.publish_mastodon("rtp")
 
 if __name__ == "__main__":
     main()
