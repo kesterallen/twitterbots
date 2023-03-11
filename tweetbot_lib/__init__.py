@@ -69,8 +69,8 @@ class BotTweet:
 
     def twitter_keys_from_file(self, keyfile="../keys.txt"):
         """
-        Keys for twitter bot authorization. Assume the keys file is at the
-        location ../keys.txt unless specified otherwise.
+        Keys for this twitter bot's authorization. Assume the keys file is
+        at the location ../keys.txt unless specified otherwise.
         """
         auth_keys = {}
 
@@ -80,29 +80,50 @@ class BotTweet:
                 name, value = row.strip().split("=")
                 auth_keys[name] = value
 
+        # Return only the keys for this bot:
         keynames = ["APP_KEY", "APP_SEC", "OAUTH_TOKEN", "OAUTH_TOKEN_SEC"]
         keys = [auth_keys[f"{self.botname}{n}"] for n in keynames]
 
         return keys
 
-    def _get_mastodon(self, name):
+    @property
+    def mastodon_access_token(self):
+        """Property for the default mastodon_access_token file location"""
+        return self.mastodon_access_token_from_file()
+
+    def mastodon_access_token_from_file(self, file="../mastodon_access_tokens.secret"):
+        """
+        Access tokens for this bot's mastodon authorization. Assume the tokens
+        file is at the location ../mastodon_access_tokens.secret unless
+        specified otherwise.
+        """
+        access_token = None
+        tokenfile = os.path.join(os.path.dirname(__file__), file)
+        with open(tokenfile, encoding="utf-8") as tokens_fh:
+            for row in tokens_fh.readlines():
+                name, value = row.strip().split()
+                if name == self.botname:
+                    access_token = value
+        return access_token
+
+    def _get_mastodon(self):
         return Mastodon(
-            access_token=get_mastodon_token_filename(name),
+            access_token=self.mastodon_access_token,
             api_base_url=MASTODON_API_BASE_URL,
         )
 
-    def publish_mastodon(self, name, debug=False):
+    def publish_mastodon(self, debug=False):
         """Publish to mastodon"""
         if debug:
             print(self.str)
-        mastodon = self._get_mastodon(name)
+        mastodon = self._get_mastodon()
         mastodon.status_post(self.str)
 
-    def publish_with_image_mastodon(self, name, image_fn, debug=False):
+    def publish_with_image_mastodon(self, image_fn, debug=False):
         """Publish to mastodon with an image"""
         if debug:
             print(self.str)
-        mastodon = self._get_mastodon(name)
+        mastodon = self._get_mastodon()
         media_dict = mastodon.media_post(mime_type="image/jpeg", media_file=image_fn)
         mastodon.status_post(self.str, media_ids=media_dict)
 
@@ -134,13 +155,6 @@ class BotTweet:
 
     def __repr__(self):
         return self.str
-
-
-def get_mastodon_token_filename(name):
-    """Assume the text file is in ../txt/"""
-    return os.path.join(
-        os.path.dirname(__file__), f"../txt/mastodon_{name}_token.secret"
-    )
 
 
 def get_tweet_filename(filename):
