@@ -208,28 +208,28 @@ def tweetify_text(textfile, use_lines=False):
     return tweets
 
 
-def get_today_index(num_tweets, then):
+def get_today_index(num_tweets, start_date):
     """
-    Get today's index into a list that is num_tweets long, starting at 'then'
+    Get today's index into a list that is num_tweets long, starting at 'start_date'
     """
     now = datetime.datetime.now()
-    td_since_start = now - then
+    td_since_start = now - start_date
     today_index = td_since_start.days % num_tweets
     return today_index
 
 
-def get_today_tweet(tweets, then):
+def get_today_tweet(tweets, start_date):
     """
-    Get today's tweet text for the list 'tweets' starting at 'then'
+    Get today's tweet text for the list 'tweets' starting at 'start_date'
     """
-    today_index = get_today_index(len(tweets), then)
+    today_index = get_today_index(len(tweets), start_date)
     today_tweet = tweets[today_index]
     return today_tweet
 
 
 def parse_text_and_get_today_tweet(textfile, start_date, use_lines=False):
     """
-    Get today's tweet text from a file, starting at 'then'
+    Get today's tweet text from a file, starting at 'start_date'
     """
     tweetfile = get_tweet_filename(textfile)
     tweets = tweetify_text(tweetfile, use_lines)
