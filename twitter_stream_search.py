@@ -9,6 +9,7 @@ from requests import exceptions as rexceptions
 from twython import TwythonStreamer
 from tweetbot_lib import BotTweet
 
+SLEEP_ERROR = 7*86400
 
 def now():
     """Nicely formatted "now" timestamp"""
@@ -28,8 +29,8 @@ class TweetStreamer(TwythonStreamer):
     # pylint: disable=no-self-use,signature-differs
     def on_error(self, status_code, data, headers):
         """error handling"""
-        print(f"{now()}: in on_error {status_code}")
-        time.sleep(30)
+        print(f"{now()}: in on_error {status_code} {data}")
+        time.sleep(SLEEP_ERROR)
         self.disconnect()
 
     def on_timeout(
@@ -59,6 +60,8 @@ def main():
         except (rexceptions.ConnectionError, socket.error) as err:
             print(now(), "restarting ", type(err).__name__, err)
             time.sleep(60)
+
+
 
 
 if __name__ == "__main__":

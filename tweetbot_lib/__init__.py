@@ -6,6 +6,7 @@ import os
 from mastodon import Mastodon
 import requests
 from twython import Twython
+from twython.exceptions import TwythonAuthError
 
 MAX_TWEET_LEN = 140
 
@@ -112,37 +113,39 @@ class BotTweet:
             api_base_url=MASTODON_API_BASE_URL,
         )
 
-    def publish_mastodon(self, debug=False):
-        """Publish to mastodon"""
-        if debug:
-            print(self.str)
-        mastodon = self._get_mastodon()
-        mastodon.status_post(self.str)
-
-    def publish_with_image_mastodon(self, image_fn, debug=False):
-        """Publish to mastodon with an image"""
-        if debug:
-            print(self.str)
-        mastodon = self._get_mastodon()
-        media_dict = mastodon.media_post(mime_type="image/jpeg", media_file=image_fn)
-        mastodon.status_post(self.str, media_ids=media_dict)
-
-    def publish(self, debug=False):
-        """Publish a tweet"""
+    def publish(self, do_mastodon=True, debug=False):
+        """Publish to twitter and mastodon"""
         twitter = Twython(*self.twitter_keys)
         if debug:
             print(self.str)
-        return twitter.update_status(status=self.str)
+        try:
+            twitter.update_status(status=self.str)
+        except TwythonAuthError as err:
+            print(f"Twython Auth Error: {err}")
 
-    def publish_with_image(self, image_fn, debug=False):
-        """Publish a tweet with an image"""
+        if do_mastodon:
+            mastodon = self._get_mastodon()
+            mastodon.status_post(self.str)
+
+    def publish_with_image(self, image_fn, do_mastodon=True, debug=False):
+        """Publish to twitter and mastodon with an image"""
         twitter = Twython(*self.twitter_keys)
         with open(image_fn, "rb") as image:
-            response = twitter.upload_media(media=image)
-            if debug:
-                print(response)
-            ids = [response["media_id"]]
-            return twitter.update_status(status=self.str, media_ids=ids)
+            try:
+                response = twitter.upload_media(media=image)
+                if debug:
+                    print(response)
+                ids = [response["media_id"]]
+                twitter.update_status(status=self.str, media_ids=ids)
+            except TwythonAuthError as err:
+                print(f"Twython Auth Error: {err}")
+
+            if do_mastodon:
+                mastodon = self._get_mastodon()
+                media_dict = mastodon.media_post(
+                    mime_type="image/jpeg", media_file=image_fn
+                )
+                mastodon.status_post(self.str, media_ids=media_dict)
 
     def download_tweet_text(self, tweet_api_url):
         """

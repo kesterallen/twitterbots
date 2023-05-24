@@ -259,7 +259,7 @@ def main():
 
     if not DEBUG:
         twitter.publish_with_image(image_fn)
-        twitter.publish_with_image_mastodon(image_fn)
+        #twitter.publish_with_image_mastodon(image_fn)
 
 
 if __name__ == "__main__":
