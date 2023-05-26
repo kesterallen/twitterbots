@@ -7,7 +7,6 @@ def main():
     twitter = BotTweet()
     twitter.download_tweet_text(tweet_url)
     twitter.publish()
-    #twitter.publish_mastodon()
 
 if __name__ == '__main__':
     main()
