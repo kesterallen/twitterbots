@@ -113,32 +113,36 @@ class BotTweet:
             api_base_url=MASTODON_API_BASE_URL,
         )
 
-    def publish(self, do_mastodon=True, debug=False):
+    def publish(self, do_mastodon=True, do_twitter=False, debug=False):
         """Publish to twitter and mastodon"""
-        twitter = Twython(*self.twitter_keys)
-        if debug:
-            print(self.str)
-        try:
-            twitter.update_status(status=self.str)
-        except TwythonAuthError as err:
-            print(f"Twython Auth Error: {err}")
+        if do_twitter:
+            twitter = Twython(*self.twitter_keys)
+            if debug:
+                print(self.str)
+            try:
+                twitter.update_status(status=self.str)
+            except TwythonAuthError as err:
+                print(f"Twython Auth Error: {err}")
 
         if do_mastodon:
             mastodon = self._get_mastodon()
             mastodon.status_post(self.str)
 
-    def publish_with_image(self, image_fn, do_mastodon=True, debug=False):
+    def publish_with_image(
+        self, image_fn, do_mastodon=True, do_twitter=False, debug=False
+    ):
         """Publish to twitter and mastodon with an image"""
-        twitter = Twython(*self.twitter_keys)
         with open(image_fn, "rb") as image:
-            try:
-                response = twitter.upload_media(media=image)
-                if debug:
-                    print(response)
-                ids = [response["media_id"]]
-                twitter.update_status(status=self.str, media_ids=ids)
-            except TwythonAuthError as err:
-                print(f"Twython Auth Error: {err}")
+            if do_twitter:
+                try:
+                    twitter = Twython(*self.twitter_keys)
+                    response = twitter.upload_media(media=image)
+                    if debug:
+                        print(response)
+                    ids = [response["media_id"]]
+                    twitter.update_status(status=self.str, media_ids=ids)
+                except TwythonAuthError as err:
+                    print(f"Twython Auth Error: {err}")
 
             if do_mastodon:
                 mastodon = self._get_mastodon()
