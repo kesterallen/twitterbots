@@ -3,6 +3,8 @@
 import datetime
 import inspect
 import os
+from typing import List
+
 from mastodon import Mastodon
 import requests
 from twython import Twython
@@ -16,7 +18,7 @@ MASTODON_API_BASE_URL = "https://botsin.space/"
 class BotTweet:
     """Bot tweet module"""
 
-    def __init__(self, word=None, botname=None):
+    def __init__(self, word: str = None, botname: str = None) -> None: # pylint: disable=E0601
         """Truncate word to MAX_TWEET_LEN if necessary"""
         if botname is None:
             frameinfo = inspect.stack()[-1]
@@ -26,49 +28,49 @@ class BotTweet:
 
         self.words = [] if word is None else [word[:MAX_TWEET_LEN]]
 
-    def pop(self):
+    def pop(self) -> str:
         """Pop a word off of self.words"""
         return self.words.pop()
 
-    def append(self, word):
+    def append(self, word: str) -> None:
         """Append 'word' to the self.words list, truncating if necessary"""
         self.words.append(word[:MAX_TWEET_LEN])
 
-    def can_take_new_word(self, word):
+    def can_take_new_word(self, word: str) -> bool:
         """Will tweet be under the length limit after adding a new word"""
         return not self.will_be_too_long(word)
 
-    def will_be_too_long(self, word):
+    def will_be_too_long(self, word: str) -> bool:
         """Will tweet be too long after adding a new word"""
         assert isinstance(word, str)
         will_be_length = self.len + len(word)
         return will_be_length > MAX_TWEET_LEN
 
-    def set_text(self, text):
+    def set_text(self, text: str) -> None:
         """Set the words array to input text"""
         self.words = [text]
 
     @property
-    def len(self):
+    def len(self) -> bool:
         """Length of tweet text"""
         return len(self.str)
 
     @property
-    def is_too_long(self):
+    def is_too_long(self) -> bool:
         """Does tweet length exceed MAX_TWEET_LEN"""
         return self.len > MAX_TWEET_LEN
 
     @property
-    def str(self):
+    def str(self) -> str:
         """String representation of text"""
         return " ".join(self.words)
 
     @property
-    def twitter_keys(self):
+    def twitter_keys(self) -> dict:
         """Property for the default twitter_keys_from_file file location"""
         return self.twitter_keys_from_file()
 
-    def twitter_keys_from_file(self, keyfile="../keys.txt"):
+    def twitter_keys_from_file(self, keyfile: str = "../keys.txt") -> dict:
         """
         Keys for this twitter bot's authorization. Assume the keys file is
         at the location ../keys.txt unless specified otherwise.
@@ -88,11 +90,13 @@ class BotTweet:
         return keys
 
     @property
-    def mastodon_access_token(self):
+    def mastodon_access_token(self) -> str:
         """Property for the default mastodon_access_token file location"""
         return self.mastodon_access_token_from_file()
 
-    def mastodon_access_token_from_file(self, file="../mastodon_access_tokens.secret"):
+    def mastodon_access_token_from_file(
+        self, file: str = "../mastodon_access_tokens.secret"
+    ) -> str:
         """
         Access tokens for this bot's mastodon authorization. Assume the tokens
         file is at the location ../mastodon_access_tokens.secret unless
@@ -107,13 +111,15 @@ class BotTweet:
                     access_token = value
         return access_token
 
-    def _get_mastodon(self):
+    def _get_mastodon(self) -> Mastodon:
         return Mastodon(
             access_token=self.mastodon_access_token,
             api_base_url=MASTODON_API_BASE_URL,
         )
 
-    def publish(self, do_mastodon=True, do_twitter=False, debug=False):
+    def publish(
+        self, do_mastodon: bool = True, do_twitter: bool = False, debug: bool = False
+    ) -> None:
         """Publish to twitter and mastodon"""
         if do_twitter:
             twitter = Twython(*self.twitter_keys)
@@ -129,8 +135,12 @@ class BotTweet:
             mastodon.status_post(self.str)
 
     def publish_with_image(
-        self, image_fn, do_mastodon=True, do_twitter=False, debug=False
-    ):
+        self,
+        image_fn: str,
+        do_mastodon: bool = True,
+        do_twitter: bool = False,
+        debug: bool = False,
+    ) -> None:
         """Publish to twitter and mastodon with an image"""
         with open(image_fn, "rb") as image:
             if do_twitter:
@@ -151,7 +161,7 @@ class BotTweet:
                 )
                 mastodon.status_post(self.str, media_ids=media_dict)
 
-    def download_tweet_text(self, tweet_api_url):
+    def download_tweet_text(self, tweet_api_url: str) -> None:
         """
         Get a tweet's text from an API, which should return a JSON object
         with a 'tweet' key
@@ -160,16 +170,16 @@ class BotTweet:
         text = resp.json()["tweet"]
         self.words = [text]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.str
 
 
-def get_tweet_filename(filename):
+def get_tweet_filename(filename: str) -> str:
     """Assume the text file is in ../txt/"""
     return os.path.join(os.path.dirname(__file__), f"../txt/{filename}")
 
 
-def tweetify_text(textfile, use_lines=False):
+def tweetify_text(textfile, use_lines: bool = False) -> List[str]:
     """
     Break the input string 'text' into MAX_TWEET_LEN-char-or-less BotTweet
     objects.
@@ -177,7 +187,7 @@ def tweetify_text(textfile, use_lines=False):
     If use_lines is True, make one tweet per line in the file.
     """
 
-    def _tweets_by_line(file_):
+    def _tweets_by_line(file_) -> List[str]:
         """
         One file line per tweet, truncated to MAX_TWEET_LEN if necessary.
         Returns a list of BotTweet objects.
@@ -185,7 +195,7 @@ def tweetify_text(textfile, use_lines=False):
         tweets = [BotTweet(l) for l in file_.readlines()]
         return tweets
 
-    def _tweets_by_word(file_):
+    def _tweets_by_word(file_) -> List[str]:
         """
         Make tweets by appending words from file_, staying below MAX_TWEET_LEN
         characters in length.
@@ -215,7 +225,7 @@ def tweetify_text(textfile, use_lines=False):
     return tweets
 
 
-def get_today_index(num_tweets, start_date):
+def get_today_index(num_tweets: int, start_date: datetime.datetime) -> int:
     """
     Get today's index into a list that is num_tweets long, starting at 'start_date'
     """
@@ -225,7 +235,7 @@ def get_today_index(num_tweets, start_date):
     return today_index
 
 
-def get_today_tweet(tweets, start_date):
+def get_today_tweet(tweets: List[str], start_date: datetime.datetime) -> str:
     """
     Get today's tweet text for the list 'tweets' starting at 'start_date'
     """
@@ -234,7 +244,9 @@ def get_today_tweet(tweets, start_date):
     return today_tweet
 
 
-def parse_text_and_get_today_tweet(textfile, start_date, use_lines=False):
+def parse_text_and_get_today_tweet(
+    textfile: str, start_date: datetime.datetime, use_lines: bool = False
+) -> str:
     """
     Get today's tweet text from a file, starting at 'start_date'
     """
