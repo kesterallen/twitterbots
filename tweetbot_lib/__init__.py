@@ -1,9 +1,9 @@
-"""Module to tweet for bots"""
+"""Module to post to social media for bots. TODO: include bluesky"""
 
 import datetime
 import inspect
 import os
-from typing import List
+from pathlib import Path
 
 from mastodon import Mastodon
 import requests
@@ -18,14 +18,38 @@ MASTODON_API_BASE_URL = "https://botsin.space/"
 class BotTweet:
     """Bot tweet module"""
 
-    def __init__(self, word: str = None, botname: str = None) -> None: # pylint: disable=E0601
-        """Truncate word to MAX_TWEET_LEN if necessary"""
-        if botname is None:
-            frameinfo = inspect.stack()[-1]
-            self.botname = os.path.basename(frameinfo.filename)
-        else:
-            self.botname = botname
+    @classmethod
+    def _get_botname(cls):
+        frameinfo = inspect.stack()[-1]
+        botname = os.path.basename(frameinfo.filename)
+        return botname
 
+    @classmethod
+    def run_recently(cls, seconds=86400, botname=None) -> bool:
+        if botname is None:
+            botname = BotTweet._get_botname()
+        monitor_file = Path(f"/home/kester/.monitor_{botname}.txt")
+
+        if monitor_file.is_file():
+            last_modified = datetime.datetime.fromtimestamp(monitor_file.stat().st_mtime)
+            age = datetime.datetime.now() - last_modified
+            if age.total_seconds() > seconds:
+                # update file
+                with monitor_file.open("w") as fh:
+                    fh.write(str(datetime.datetime.now()))
+                return False
+            else:
+                return True
+        else:
+            # create file
+            with monitor_file.open("w") as fh:
+                fh.write(str(datetime.datetime.now()))
+            return False
+
+    # pylint: disable-next=E0601
+    def __init__(self, word: str = None, botname: str = None) -> None:
+        """Truncate word to MAX_TWEET_LEN if necessary"""
+        self.botname = BotTweet._get_botname() if botname is None else botname
         self.words = [] if word is None else [word[:MAX_TWEET_LEN]]
 
     def pop(self) -> str:
@@ -118,28 +142,27 @@ class BotTweet:
         )
 
     def publish(
-        self, do_mastodon: bool = True, do_twitter: bool = False, debug: bool = False
-    ) -> None:
+        self, do_mastodon: bool = True, do_twitter: bool = False) -> None:
         """Publish to twitter and mastodon"""
         if do_twitter:
             twitter = Twython(*self.twitter_keys)
-            if debug:
-                print(self.str)
             try:
                 twitter.update_status(status=self.str)
             except TwythonAuthError as err:
                 print(f"Twython Auth Error: {err}")
 
         if do_mastodon:
-            mastodon = self._get_mastodon()
-            mastodon.status_post(self.str)
+            try:
+                mastodon = self._get_mastodon()
+                mastodon.status_post(self.str)
+            except FileNotFoundError as err:
+                print(f"Can't find file: {err}")
 
     def publish_with_image(
         self,
         image_fn: str,
         do_mastodon: bool = True,
         do_twitter: bool = False,
-        debug: bool = False,
     ) -> None:
         """Publish to twitter and mastodon with an image"""
         with open(image_fn, "rb") as image:
@@ -147,26 +170,27 @@ class BotTweet:
                 try:
                     twitter = Twython(*self.twitter_keys)
                     response = twitter.upload_media(media=image)
-                    if debug:
-                        print(response)
                     ids = [response["media_id"]]
                     twitter.update_status(status=self.str, media_ids=ids)
                 except TwythonAuthError as err:
                     print(f"Twython Auth Error: {err}")
 
             if do_mastodon:
-                mastodon = self._get_mastodon()
-                media_dict = mastodon.media_post(
-                    mime_type="image/jpeg", media_file=image_fn
-                )
-                mastodon.status_post(self.str, media_ids=media_dict)
+                try:
+                    mastodon = self._get_mastodon()
+                    media_dict = mastodon.media_post(
+                        mime_type="image/jpeg", media_file=image_fn
+                    )
+                    mastodon.status_post(self.str, media_ids=media_dict)
+                except FileNotFoundError as err:
+                    print(f"Can't find file: {err}")
 
     def download_tweet_text(self, tweet_api_url: str) -> None:
         """
         Get a tweet's text from an API, which should return a JSON object
         with a 'tweet' key
         """
-        resp = requests.get(tweet_api_url)
+        resp = requests.get(tweet_api_url, timeout=60)
         text = resp.json()["tweet"]
         self.words = [text]
 
@@ -179,7 +203,7 @@ def get_tweet_filename(filename: str) -> str:
     return os.path.join(os.path.dirname(__file__), f"../txt/{filename}")
 
 
-def tweetify_text(textfile, use_lines: bool = False) -> List[str]:
+def tweetify_text(textfile, use_lines: bool = False) -> list[BotTweet]:
     """
     Break the input string 'text' into MAX_TWEET_LEN-char-or-less BotTweet
     objects.
@@ -187,7 +211,7 @@ def tweetify_text(textfile, use_lines: bool = False) -> List[str]:
     If use_lines is True, make one tweet per line in the file.
     """
 
-    def _tweets_by_line(file_) -> List[str]:
+    def _tweets_by_line(file_) -> list[str]:
         """
         One file line per tweet, truncated to MAX_TWEET_LEN if necessary.
         Returns a list of BotTweet objects.
@@ -195,7 +219,7 @@ def tweetify_text(textfile, use_lines: bool = False) -> List[str]:
         tweets = [BotTweet(l) for l in file_.readlines()]
         return tweets
 
-    def _tweets_by_word(file_) -> List[str]:
+    def _tweets_by_word(file_) -> list[str]:
         """
         Make tweets by appending words from file_, staying below MAX_TWEET_LEN
         characters in length.
@@ -235,7 +259,7 @@ def get_today_index(num_tweets: int, start_date: datetime.datetime) -> int:
     return today_index
 
 
-def get_today_tweet(tweets: List[str], start_date: datetime.datetime) -> str:
+def get_today_tweet(tweets: list[str], start_date: datetime.datetime) -> str:
     """
     Get today's tweet text for the list 'tweets' starting at 'start_date'
     """

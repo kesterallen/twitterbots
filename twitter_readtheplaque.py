@@ -3,12 +3,14 @@
 import requests
 from tweetbot_lib import BotTweet
 
-URL_PREF = "https://readtheplaque.com/"
-URLS = {
-    "RAND": URL_PREF + "featured/random",
-    "TWEET": URL_PREF + "tweet",
-    "GEOJSON": URL_PREF + "featured/geojson",
+PREFIX = "https://readtheplaque.com/"
+SUFFIXES = {
+    "RAND": "featured/random",
+    "FLUSH": "flush",
+    "TWEET": "tweet",
+    "GEOJSON": "featured/geojson",
 }
+URLS = {k: f"{PREFIX}{v}" for k, v in SUFFIXES.items()}
 
 
 def main():
@@ -17,7 +19,11 @@ def main():
     2) Publish a tweet about it,
     3) send a tweet to the plaque's submitter (if they are specified in the plaque description)
     """
+    if BotTweet.run_recently(seconds=86400):
+        return
+
     resp = requests.get(URLS["RAND"])
+    requests.get(URLS["FLUSH"])
     resp_json = resp.json()
 
     twitter = BotTweet(resp_json["tweet"])

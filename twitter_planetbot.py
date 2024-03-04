@@ -187,8 +187,12 @@ def _ignore(hist, offset=10, width=3.0):
     return ignore
 
 
-def _usgs_url(planet, box, width, height, use_shorter_redirect=True, precise=True):
-    """Thanks to Trent Hare of the USGS for this service"""
+def _usgs_url(planet, box, width, height, use_shorter_redirect=False, precise=True):
+    """
+    Thanks to Trent Hare of the USGS for this service.
+    The use_shorter_redirect flag turns on a shorter URL (the full URL doesn't
+    work on twitter's URL shortener).
+    """
 
     box_str = box.str_precise if precise else box.str
     if use_shorter_redirect:
@@ -249,6 +253,9 @@ def main():
     planet_name = sys.argv[1]
     assert planet_name in PLANETS
     planet = PLANETS[planet_name]
+
+    if BotTweet.run_recently(seconds=86400, botname=planet.botname):
+        return
 
     box, url, image_fn = random_planet_image(planet)
     if DEBUG:
