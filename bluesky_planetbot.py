@@ -14,6 +14,7 @@ import numpy as np
 from PIL import Image, ImageOps
 from scipy import optimize
 #from tweetbot_lib import BotTweet
+from blueskybot_lib import BotPost
 
 DEBUG = False
 DEFAULT_WIDTH = 1920
@@ -281,28 +282,37 @@ def main():
 
     post_text = f"{planet_name}, {box.pretty_str}, {url}"
 
-    # Use one Bluesky account per planet. For Venus, set VENUSBOT_BLUESKY_HANDLE
-    # and VENUSBOT_BLUESKY_APP_PASSWORD; for Mercury, use MERCURYBOT_...
-    prefix = planet.botname.upper()
-    handle = os.environ.get(f"{prefix}_BLUESKY_HANDLE", os.environ.get("BLUESKY_HANDLE"))
-    app_password = os.environ.get(
-        f"{prefix}_BLUESKY_APP_PASSWORD", os.environ.get("BLUESKY_APP_PASSWORD")
-    )
-    if not handle or not app_password:
-        raise RuntimeError(
-            f"Set {prefix}_BLUESKY_HANDLE and {prefix}_BLUESKY_APP_PASSWORD "
-            "(or the generic BLUESKY_HANDLE and BLUESKY_APP_PASSWORD)."
-        )
+    post = BotPost(botname=planet.botname)
+    post.set_text(post_text)
 
     if not DEBUG:
-        client = Client()
-        client.login(handle, app_password)
-        with open(image_fn, "rb") as image_file:
-            client.send_image(
-                text=post_text,
-                image=image_file.read(),
-                image_alt=f"Planetary surface map of {planet_name}. {box.pretty_str}",
-            )
+        post.publish_with_image(
+            image_fn,
+            alt_text=f"Planetary surface map of {planet_name}. {box.pretty_str}",
+        )
+
+#    # Use one Bluesky account per planet. For Venus, set VENUSBOT_BLUESKY_HANDLE
+#    # and VENUSBOT_BLUESKY_APP_PASSWORD; for Mercury, use MERCURYBOT_...
+#    prefix = planet.botname.upper()
+#    handle = os.environ.get(f"{prefix}_BLUESKY_HANDLE", os.environ.get("BLUESKY_HANDLE"))
+#    app_password = os.environ.get(
+#        f"{prefix}_BLUESKY_APP_PASSWORD", os.environ.get("BLUESKY_APP_PASSWORD")
+#    )
+#    if not handle or not app_password:
+#        raise RuntimeError(
+#            f"Set {prefix}_BLUESKY_HANDLE and {prefix}_BLUESKY_APP_PASSWORD "
+#            "(or the generic BLUESKY_HANDLE and BLUESKY_APP_PASSWORD)."
+#        )
+#
+#    if not DEBUG:
+#        client = Client()
+#        client.login(handle, app_password)
+#        with open(image_fn, "rb") as image_file:
+#            client.send_image(
+#                text=post_text,
+#                image=image_file.read(),
+#                image_alt=f"Planetary surface map of {planet_name}. {box.pretty_str}",
+#            )
 
 
 if __name__ == "__main__":
