@@ -3,3 +3,5 @@ keys.txt
 __pycache__
 *mastodon*.secret
 accuweather_key.txt
+*bluesky*.secret
+bluesky_replybot.cursor

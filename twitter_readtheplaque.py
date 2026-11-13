@@ -19,9 +19,6 @@ def main():
     2) Publish a tweet about it,
     3) send a tweet to the plaque's submitter (if they are specified in the plaque description)
     """
-    if BotTweet.run_recently(seconds=86400):
-        return
-
     resp = requests.get(URLS["RAND"])
     requests.get(URLS["FLUSH"])
     resp_json = resp.json()

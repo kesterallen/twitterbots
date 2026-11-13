@@ -254,9 +254,6 @@ def main():
     assert planet_name in PLANETS
     planet = PLANETS[planet_name]
 
-    if BotTweet.run_recently(seconds=86400, botname=planet.botname):
-        return
-
     box, url, image_fn = random_planet_image(planet)
     if DEBUG:
         print(box.pretty_str, url)

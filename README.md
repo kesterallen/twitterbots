@@ -2,6 +2,7 @@
 Put text for text-parsing bots in txt/. 
 
 Install this for mastadon bots:
+
     pip install Mastodon.py
 
 Create keys.txt, BUT DO NOT COMMIT, containing keys on a per-bot basis, e.g.:

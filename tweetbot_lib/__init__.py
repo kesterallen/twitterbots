@@ -15,6 +15,9 @@ MAX_TWEET_LEN = 140
 MASTODON_API_BASE_URL = "https://botsin.space/"
 
 
+class BotTweetTooYoung(Exception):
+    """Tweet was run too recently"""
+
 class BotTweet:
     """Bot tweet module"""
 
@@ -28,7 +31,8 @@ class BotTweet:
     def run_recently(cls, seconds=86400, botname=None) -> bool:
         if botname is None:
             botname = BotTweet._get_botname()
-        monitor_file = Path(f"/home/kester/.monitor_{botname}.txt")
+        monitor_file = Path.home() / Path(f".monitor_{botname}.txt")
+        print(monitor_file)
 
         if monitor_file.is_file():
             last_modified = datetime.datetime.fromtimestamp(monitor_file.stat().st_mtime)
@@ -49,6 +53,10 @@ class BotTweet:
     # pylint: disable-next=E0601
     def __init__(self, word: str = None, botname: str = None) -> None:
         """Truncate word to MAX_TWEET_LEN if necessary"""
+
+        if BotTweet.run_recently(seconds=86400):
+            raise BotTweetTooYoung
+
         self.botname = BotTweet._get_botname() if botname is None else botname
         self.words = [] if word is None else [word[:MAX_TWEET_LEN]]
 
