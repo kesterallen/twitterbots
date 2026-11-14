@@ -9,9 +9,10 @@ twitter_replybot.py.
 Install:
     python -m pip install atproto websocket-client
 
-Configure credentials with environment variables:
-    export HARPOBOT_BLUESKY_HANDLE="yourbot.bsky.social"
-    export HARPOBOT_BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+Configure credentials in ../bluesky_credentials.secret, using one line:
+    bluesky_replybot.py yourbot.bsky.social xxxx-xxxx-xxxx-xxxx
+
+The credentials file uses the same format as the other Bluesky bots.
 
 Run in dry-run mode first:
     python bluesky_replybot.py --sendtweet false
@@ -23,7 +24,6 @@ Then enable replies:
 import argparse
 import datetime
 import json
-import os
 import random
 import time
 from pathlib import Path
@@ -31,6 +31,8 @@ from urllib.parse import urlencode
 
 import websocket
 from atproto import Client, models
+
+from blueskybot_lib import BotPost
 
 
 SLEEP_ERROR = 90
@@ -131,14 +133,9 @@ class BlueskyReplyBot:
         if not self.replies:
             raise ValueError("At least one --replies response is required.")
 
-        handle = args.handle or os.environ.get("HARPOBOT_BLUESKY_HANDLE")
-        password = (args.app_password
-                    or os.environ.get("HARPOBOT_BLUESKY_APP_PASSWORD"))
-        if not handle or not password:
-            raise ValueError(
-                "Set HARPOBOT_BLUESKY_HANDLE and HARPOBOT_BLUESKY_APP_PASSWORD, "
-                "or pass --handle and --app-password."
-            )
+        # Use the shared credentials file and the same bot-name convention
+        # as the other publishing scripts in blueskybot_lib.
+        handle, password = BotPost(botname="bluesky_replybot.py").bluesky_credentials
 
         self.client = Client()
         self.client.login(handle, password)
@@ -279,7 +276,7 @@ class BlueskyReplyBot:
                         continue
 
             except KeyboardInterrupt:
-                print(f"\n{now()} Shutting down")
+                print(f"\\n{now()} Shutting down")
                 return
             except Exception as exc:
                 print(f"{now()} Stream error: {type(exc).__name__}: {exc}")
@@ -311,18 +308,6 @@ def get_args():
         type=str,
         default=",".join(DEFAULT_REPLIES),
         help="comma-separated possible replies",
-    )
-    parser.add_argument(
-        "--handle",
-        type=str,
-        default=None,
-        help="Bluesky handle (or set HARPOBOT_BLUESKY_HANDLE)",
-    )
-    parser.add_argument(
-        "--app-password",
-        type=str,
-        default=None,
-        help="Bluesky app password (or set HARPOBOT_BLUESKY_APP_PASSWORD)",
     )
     parser.add_argument(
         "--sendtweet",
@@ -361,7 +346,7 @@ def main():
     args = get_args()
     try:
         BlueskyReplyBot(args).run()
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, KeyError) as exc:
         raise SystemExit(str(exc)) from exc
 
 
