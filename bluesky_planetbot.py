@@ -214,8 +214,6 @@ def _get_image(lat_box_side, planet, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT)
     box = BoundingBox.get_rand(lat_box_side, aspect_ratio, planet.km_per_lat_deg)
     url = _usgs_url(planet, box, width, height, precise=False)
     url_precise = _usgs_url(planet, box, width, height, precise=True)
-    #print(url_precise)
-    #tmp_fn, headers = urllib.request.urlretrieve(url_precise)  # pylint: disable=unused-variable
 
     request = urllib.request.Request(
         url_precise,
@@ -268,52 +266,25 @@ def main():
     """
     Generate and publish a planet image
     """
+    assert len(sys.argv) > 1, "Specify planet"
     planet_name = sys.argv[1]
     assert planet_name in PLANETS
     planet = PLANETS[planet_name]
 
-    # TODO
-    #if BotTweet.run_recently(seconds=86400, botname=planet.botname):
-        #return
+    if BotPost.run_recently(seconds=86400, botname=planet.botname):
+        print("run too recently")
+        return
 
     box, url, image_fn = random_planet_image(planet)
     if DEBUG:
         print(box.pretty_str, url)
 
-    post_text = f"{planet_name}, {box.pretty_str}, {url}"
-
     post = BotPost(botname=planet.botname)
-    post.set_text(post_text)
+    post.set_text(f"{planet_name}, {box.pretty_str}, {url}")
+    alt_text = f"Planetary surface map of {planet_name}. {box.pretty_str}"
 
     if not DEBUG:
-        post.publish_with_image(
-            image_fn,
-            alt_text=f"Planetary surface map of {planet_name}. {box.pretty_str}",
-        )
-
-#    # Use one Bluesky account per planet. For Venus, set VENUSBOT_BLUESKY_HANDLE
-#    # and VENUSBOT_BLUESKY_APP_PASSWORD; for Mercury, use MERCURYBOT_...
-#    prefix = planet.botname.upper()
-#    handle = os.environ.get(f"{prefix}_BLUESKY_HANDLE", os.environ.get("BLUESKY_HANDLE"))
-#    app_password = os.environ.get(
-#        f"{prefix}_BLUESKY_APP_PASSWORD", os.environ.get("BLUESKY_APP_PASSWORD")
-#    )
-#    if not handle or not app_password:
-#        raise RuntimeError(
-#            f"Set {prefix}_BLUESKY_HANDLE and {prefix}_BLUESKY_APP_PASSWORD "
-#            "(or the generic BLUESKY_HANDLE and BLUESKY_APP_PASSWORD)."
-#        )
-#
-#    if not DEBUG:
-#        client = Client()
-#        client.login(handle, app_password)
-#        with open(image_fn, "rb") as image_file:
-#            client.send_image(
-#                text=post_text,
-#                image=image_file.read(),
-#                image_alt=f"Planetary surface map of {planet_name}. {box.pretty_str}",
-#            )
-
+        post.publish_with_image(image_fn, alt_text=alt_text)
 
 if __name__ == "__main__":
     main()

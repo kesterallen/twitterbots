@@ -1,5 +1,4 @@
 import datetime
-
 from blueskybot_lib import parse_text_and_get_today_post, BotPost
 
 START_DATE = datetime.datetime(2026, 11, 11, 11, 11, 11)  # corduroy day '26
