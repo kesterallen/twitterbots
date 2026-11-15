@@ -1,11 +1,11 @@
 import datetime
-from blueskybot_lib import parse_text_and_get_today_post, BotPost
+from blueskybot_lib import parse_text_and_get_today_post, run_recently
 
 START_DATE = datetime.datetime(2026, 11, 11, 11, 11, 11)  # corduroy day '26
 
 
 def main():
-    if BotPost.run_recently(seconds=86400, botname="secondinaugural"):
+    if run_recently("secondinaugural"):
         return
 
     today_post = parse_text_and_get_today_post("second_inaugural.txt", START_DATE)

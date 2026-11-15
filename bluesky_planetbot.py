@@ -6,14 +6,14 @@ from math import acos, cos, pi
 import os
 import random
 import sys
+import tempfile
 import urllib
 
-from atproto import Client
 from box import Box
 import numpy as np
 from PIL import Image, ImageOps
 from scipy import optimize
-from blueskybot_lib import BotPost
+from blueskybot_lib import BotPost, run_recently
 
 DEBUG = False
 DEFAULT_WIDTH = 1920
@@ -227,7 +227,6 @@ def _get_image(lat_box_side, planet, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT)
     )
 
     with urllib.request.urlopen(request, timeout=60) as response:
-        import tempfile
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp.write(response.read())
             tmp_fn = tmp.name
@@ -295,8 +294,8 @@ def main():
     assert planet_name in PLANETS
     planet = PLANETS[planet_name]
 
-    #if BotPost.run_recently(seconds=86400, botname=planet.botname):
-        #return
+    if run_recently(planet.botname, seconds=600):
+        return
 
     box, url, image_fn = random_planet_image(planet)
     if DEBUG:

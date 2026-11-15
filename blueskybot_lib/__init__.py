@@ -19,12 +19,13 @@ import datetime
 import inspect
 import io
 import os
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
-from atproto import Client, models
+from atproto import Client, client_utils, models
 from atproto.exceptions import AtProtocolError
 from PIL import Image
 
@@ -68,6 +69,87 @@ def download_image(image_url: str, timeout: int = 60) -> bytes:
     resp = requests.get(image_url, timeout=timeout)
     resp.raise_for_status()
     return shrink_image(resp.content)
+
+
+# How to handle multi-word tags written as #{two words} (or #[two words]):
+#   "join": show "#twowords", tag "twowords"   (clickable/searchable everywhere)
+#   "keep": show "#two words", tag "two words"  (the facet keeps the space; the
+#           Bluesky lexicon allows it, but clients differ in how they search it)
+SPACE_TAG_MODE = "join"
+
+# Tokens recognized in post text. A hashtag is # followed by word characters,
+# at least one of which isn't a digit, and must start the text or follow
+# whitespace ("#123" and "a#b" aren't tags). A mention is @ + a domain-style
+# handle (needs a dot), also at the start or after whitespace.
+_LABEL = r"[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
+_RICH_TOKEN_RE = re.compile(
+    r"(?P<url>https?://\S+)"
+    r"|(?<!\S)#[\{\[](?P<btag>[^\}\]\n]+?)[\}\]]"
+    r"|(?<!\S)#(?P<tag>\w*[^\W\d]\w*)"
+    rf"|(?<!\S)@(?P<mention>{_LABEL}(?:\.{_LABEL})+)"
+)
+
+
+def _tag_parts(raw: str) -> tuple:
+    """(displayed_text, tag_value) for the contents of a #{multi word tag}"""
+    words = raw.split()
+    if SPACE_TAG_MODE == "keep":
+        tag = " ".join(words)
+        return "#" + tag, tag
+    tag = "".join(words)
+    return "#" + tag, tag
+
+
+def build_rich_text(text: str, client: Client = None) -> client_utils.TextBuilder:
+    """
+    Turn plain text into a TextBuilder, so that #hashtags, @mentions and URLs
+    get real Bluesky facets. Bluesky only treats these as tags / mentions /
+    links if the post record carries a facet for them; plain text sent through
+    the API is just text.
+
+    Syntax:
+      #railways            a one-word tag
+      #{railway station}   a multi-word tag (#[railway station] also works);
+                           see SPACE_TAG_MODE for how it's displayed
+      @name.bsky.social    a mention; needs 'client' to look up the handle's
+                           DID. Handles that don't resolve stay plain text.
+    """
+    builder = client_utils.TextBuilder()
+    pos = 0
+    for m in _RICH_TOKEN_RE.finditer(text):
+        builder.text(text[pos : m.start()])
+        if m.group("url"):
+            url, trailing = m.group("url"), ""
+            while url and url[-1] in ".,;:!?)]}'\"":
+                trailing = url[-1] + trailing
+                url = url[:-1]
+            builder.link(url, url)
+            builder.text(trailing)
+        elif m.group("btag"):
+            shown, tag = _tag_parts(m.group("btag"))
+            builder.tag(shown, tag)
+        elif m.group("tag"):
+            builder.tag(m.group(0), m.group("tag"))
+        else:  # mention
+            handle = m.group("mention")
+            did = None
+            if client is not None:
+                try:
+                    did = client.resolve_handle(handle).did
+                except Exception:  # unknown handle, network trouble, etc.
+                    did = None
+            if did:
+                builder.mention(m.group(0), did)
+            else:
+                builder.text(m.group(0))
+        pos = m.end()
+    builder.text(text[pos:])
+    return builder
+
+
+def rendered_text(text: str) -> str:
+    """The text as it will appear on Bluesky (e.g. '#{a b}' -> '#ab')"""
+    return build_rich_text(text).build_text()
 
 
 class _OpenGraphParser(HTMLParser):
@@ -130,26 +212,6 @@ class BotPost:
         frameinfo = inspect.stack()[-1]
         return os.path.basename(frameinfo.filename)
 
-    @classmethod
-    def run_recently(cls, seconds: int = 86400, botname: str = None) -> bool:
-        """
-        True if this bot ran within the last 'seconds' seconds. Otherwise,
-        touch the monitor file and return False.
-        """
-        if botname is None:
-            botname = cls._get_botname()
-
-        monitor_file = MONITOR_DIR / f".monitor_{botname}.txt"
-
-        if monitor_file.is_file():
-            last_modified = datetime.datetime.fromtimestamp(monitor_file.stat().st_mtime)
-            age = datetime.datetime.now() - last_modified
-            if age.total_seconds() <= seconds:
-                return True
-
-        monitor_file.write_text(str(datetime.datetime.now()), encoding="utf-8")
-        return False
-
     def __init__(self, word: str = None, botname: str = None) -> None:
         """Truncate word to MAX_POST_LEN if necessary"""
         self.botname = BotPost._get_botname() if botname is None else botname
@@ -163,6 +225,13 @@ class BotPost:
         """Append 'word' to the self.words list, truncating if necessary"""
         self.words.append(word[:MAX_POST_LEN])
 
+    def add_tags(self, tags: list) -> None:
+        """Append each tag (which may contain spaces) as a hashtag"""
+        for tag in tags:
+            tag = tag.strip().lstrip("#")
+            if tag:
+                self.words.append("#{" + tag + "}")
+
     def can_take_new_word(self, word: str) -> bool:
         """Will post be under the length limit after adding a new word"""
         return not self.will_be_too_long(word)
@@ -171,8 +240,8 @@ class BotPost:
         """Will post be too long after adding a new word"""
         assert isinstance(word, str)
         # +1 for the joining space (zero words -> no space)
-        sep = 1 if self.words else 0
-        return self.len + sep + len(word) > MAX_POST_LEN
+        candidate = " ".join(self.words + [word])
+        return len(rendered_text(candidate)) > MAX_POST_LEN
 
     def set_text(self, text: str) -> None:
         """Set the words array to input text"""
@@ -180,8 +249,8 @@ class BotPost:
 
     @property
     def len(self) -> int:
-        """Length of post text"""
-        return len(self.str)
+        """Length of post text as displayed on Bluesky"""
+        return len(rendered_text(self.str))
 
     @property
     def is_too_long(self) -> bool:
@@ -231,7 +300,7 @@ class BotPost:
             raise ValueError(f"Post is {self.len} chars; limit is {MAX_POST_LEN}")
         try:
             client = self._get_bluesky()
-            client.send_post(self.str)
+            client.send_post(build_rich_text(self.str, client))
         except FileNotFoundError as err:
             print(f"Can't find file: {err}")
         except KeyError as err:
@@ -244,7 +313,9 @@ class BotPost:
             raise ValueError(f"Post is {self.len} chars; limit is {MAX_POST_LEN}")
         try:
             client = self._get_bluesky()
-            client.send_image(text=self.str, image=image_data, image_alt=alt_text)
+            client.send_image(
+                text=build_rich_text(self.str, client), image=image_data, image_alt=alt_text
+            )
         except KeyError as err:
             print(f"Credentials error: {err}")
         except FileNotFoundError as err:
@@ -302,7 +373,7 @@ class BotPost:
                 )
             )
             text = f"{self.str} {page_url}" if include_link else self.str
-            client.send_post(text, embed=embed)
+            client.send_post(build_rich_text(text, client), embed=embed)
         except requests.RequestException as err:
             print(f"Can't fetch {page_url}: {err}")
         except KeyError as err:
@@ -323,9 +394,25 @@ class BotPost:
         return self.str
 
 
-# Backwards-compatible aliases so existing bot scripts keep working
-BotTweet = BotPost
-MAX_TWEET_LEN = MAX_POST_LEN
+## Backwards-compatible aliases so existing bot scripts keep working
+#BotTweet = BotPost
+#MAX_TWEET_LEN = MAX_POST_LEN
+
+def run_recently(botname: str, seconds: int = 86400) -> bool:
+    """
+    True if botname ran within the last 'seconds' seconds. Otherwise,
+    touch the monitor file and return False.
+    """
+    monitor_file = MONITOR_DIR / f".monitor_{botname}.txt"
+
+    if monitor_file.is_file():
+        last_modified = datetime.datetime.fromtimestamp(monitor_file.stat().st_mtime)
+        age = datetime.datetime.now() - last_modified
+        if age.total_seconds() <= seconds:
+            return True
+
+    monitor_file.write_text(str(datetime.datetime.now()), encoding="utf-8")
+    return False
 
 
 def get_post_filename(filename: str) -> str:
@@ -333,7 +420,7 @@ def get_post_filename(filename: str) -> str:
     return os.path.join(os.path.dirname(__file__), f"../txt/{filename}")
 
 
-get_tweet_filename = get_post_filename
+#get_tweet_filename = get_post_filename
 
 
 def postify_text(textfile, use_lines: bool = False) -> list:
@@ -367,7 +454,7 @@ def postify_text(textfile, use_lines: bool = False) -> list:
         return _posts_by_line(file_) if use_lines else _posts_by_word(file_)
 
 
-tweetify_text = postify_text
+#tweetify_text = postify_text
 
 
 def get_today_index(num_posts: int, start_date: datetime.datetime) -> int:
@@ -381,7 +468,7 @@ def get_today_post(posts: list, start_date: datetime.datetime) -> BotPost:
     return posts[get_today_index(len(posts), start_date)]
 
 
-get_today_tweet = get_today_post
+#get_today_tweet = get_today_post
 
 
 def parse_text_and_get_today_post(
@@ -392,4 +479,4 @@ def parse_text_and_get_today_post(
     return get_today_post(posts, start_date)
 
 
-parse_text_and_get_today_tweet = parse_text_and_get_today_post
+#parse_text_and_get_today_tweet = parse_text_and_get_today_post
