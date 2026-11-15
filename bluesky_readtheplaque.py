@@ -9,20 +9,14 @@ URL = f"{PREFIX}/api/plaques/random"
 
 
 def main():
-    if BotPost.run_recently(seconds=86400, botname="bluesky_readtheplaque"):
+    if BotPost.run_recently(seconds=86400, botname="readtheplaque"):
         return
 
     resp = requests.get(URL)
     plaque = Box(resp.json())
 
-    post = f"""
-{plaque.title} 
-#alwaysreadtheplaque
-{PREFIX}/plaque/{plaque.slug}
-{PREFIX}{plaque.thumb_url}
-"""
-    client = BotPost(post)
-    client.publish()
+    client = BotPost(f"{plaque.title} #alwaysreadtheplaque")
+    client.publish_with_link_card(f"{PREFIX}/plaque/{plaque.slug}")
 
 
 if __name__ == "__main__":

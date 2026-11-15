@@ -1,5 +1,7 @@
 """Module to post to Bluesky for bots (ported from the Twitter/Mastodon version).
 
+Requires:  pip install atproto requests
+
 Credentials file (default ../bluesky_credentials.secret, relative to this file),
 one bot per line, whitespace separated:
 
@@ -7,7 +9,7 @@ one bot per line, whitespace separated:
 
 e.g.
 
-    bluesky_gettysburg.py gettysburg-bot.bsky.social xxxx-xxxx-xxxx-xxxx
+    bluesky_gettysburg.py gettysburg.bsky.social xxxx-xxxx-xxxx-xxxx
 
 Use an *app password* (Settings -> Privacy and Security -> App Passwords),
 never your main account password.
@@ -15,17 +17,109 @@ never your main account password.
 
 import datetime
 import inspect
+import io
 import os
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urljoin
 
 import requests
-from atproto import Client
+from atproto import Client, models
+from atproto.exceptions import AtProtocolError
+from PIL import Image
 
 # Bluesky's limit is 300 graphemes. len() counts code points, which is always
 # >= the grapheme count, so this errs on the safe side.
 MAX_POST_LEN = 300
 
+# Bluesky rejects image blobs larger than 1,000,000 bytes
+MAX_IMAGE_BYTES = 950_000
+
 MONITOR_DIR = Path.home()
+
+
+def shrink_image(data: bytes, max_bytes: int = MAX_IMAGE_BYTES) -> bytes:
+    """
+    Return image bytes under max_bytes, as JPEG. Images already small enough
+    are returned untouched. Otherwise, downscale and lower JPEG quality until
+    the image fits.
+    """
+    if len(data) <= max_bytes:
+        return data
+
+    img = Image.open(io.BytesIO(data))
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+
+    quality = 90
+    while True:
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=quality, optimize=True)
+        if buf.tell() <= max_bytes:
+            return buf.getvalue()
+        if quality > 60:
+            quality -= 10
+        else:
+            img = img.resize((int(img.width * 0.85), int(img.height * 0.85)))
+
+
+def download_image(image_url: str, timeout: int = 60) -> bytes:
+    """Download an image and return its (Bluesky-size-compliant) bytes"""
+    resp = requests.get(image_url, timeout=timeout)
+    resp.raise_for_status()
+    return shrink_image(resp.content)
+
+
+class _OpenGraphParser(HTMLParser):
+    """Collect <meta property|name="og:*|twitter:*" content="..."> tags and <title>"""
+
+    def __init__(self):
+        super().__init__()
+        self.meta = {}
+        self.title = ""
+        self._in_title = False
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "meta":
+            key = attrs.get("property") or attrs.get("name")
+            if key and attrs.get("content") is not None:
+                self.meta.setdefault(key.strip().lower(), attrs["content"].strip())
+        elif tag == "title":
+            self._in_title = True
+
+    def handle_endtag(self, tag):
+        if tag == "title":
+            self._in_title = False
+
+    def handle_data(self, data):
+        if self._in_title:
+            self.title += data
+
+
+def fetch_open_graph(page_url: str, timeout: int = 60) -> dict:
+    """
+    Fetch a page and return {'url', 'title', 'description', 'image'} from its
+    OpenGraph (falling back to Twitter-card / <title>) metadata. A relative
+    image URL is resolved against the page URL.
+    """
+    resp = requests.get(
+        page_url,
+        timeout=timeout,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; tweetbot_lib link-card fetcher)"},
+    )
+    resp.raise_for_status()
+    parser = _OpenGraphParser()
+    parser.feed(resp.text)
+    meta = parser.meta
+
+    image = meta.get("og:image") or meta.get("twitter:image")
+    return {
+        "url": meta.get("og:url") or page_url,
+        "title": meta.get("og:title") or meta.get("twitter:title") or parser.title.strip(),
+        "description": meta.get("og:description") or meta.get("twitter:description") or "",
+        "image": urljoin(page_url, image) if image else None,
+    }
 
 
 class BotPost:
@@ -142,20 +236,79 @@ class BotPost:
             print(f"Can't find file: {err}")
         except KeyError as err:
             print(f"Credentials error: {err}")
+        except AtProtocolError as err:
+            print(f"Bluesky error: {err}")
 
-    def publish_with_image(self, image_fn: str, alt_text: str = "") -> None:
-        """Publish to Bluesky with an image (Bluesky's image limit is ~1 MB)"""
+    def _send_image_bytes(self, image_data: bytes, alt_text: str = "") -> None:
         if self.is_too_long:
             raise ValueError(f"Post is {self.len} chars; limit is {MAX_POST_LEN}")
         try:
-            with open(image_fn, "rb") as image:
-                image_data = image.read()
             client = self._get_bluesky()
             client.send_image(text=self.str, image=image_data, image_alt=alt_text)
-        except FileNotFoundError as err:
-            print(f"Can't find file: {err}")
         except KeyError as err:
             print(f"Credentials error: {err}")
+        except FileNotFoundError as err:
+            print(f"Can't find file: {err}")
+        except AtProtocolError as err:
+            print(f"Bluesky error: {err}")
+
+    def publish_with_image(self, image_fn: str, alt_text: str = "") -> None:
+        """Publish to Bluesky with an image from a local file"""
+        with open(image_fn, "rb") as image:
+            data = shrink_image(image.read())
+        self._send_image_bytes(data, alt_text)
+
+    def publish_with_image_url(self, image_url: str, alt_text: str = "") -> None:
+        """
+        Download the image at image_url and publish it to Bluesky as an
+        embedded image (not just a link to it).
+        """
+        try:
+            data = download_image(image_url)
+        except requests.RequestException as err:
+            print(f"Can't download image {image_url}: {err}")
+            return
+        self._send_image_bytes(data, alt_text)
+
+    def publish_with_link_card(self, page_url: str, include_link: bool = False) -> None:
+        """
+        Publish to Bluesky with a link-preview card built from page_url's
+        OpenGraph tags.
+
+        Bluesky does NOT scrape OpenGraph tags when a post is created through
+        the API -- the official app builds the card client-side while you
+        type, and attaches it to the post. A bot has to do the same: fetch the
+        tags, upload the image as a blob, and attach an external embed.
+        """
+        if self.is_too_long:
+            raise ValueError(f"Post is {self.len} chars; limit is {MAX_POST_LEN}")
+        try:
+            og = fetch_open_graph(page_url)
+            client = self._get_bluesky()
+
+            thumb = None
+            if og["image"]:
+                try:
+                    thumb = client.upload_blob(download_image(og["image"])).blob
+                except (requests.RequestException, AtProtocolError) as err:
+                    print(f"Can't attach card image {og['image']}: {err}")
+
+            embed = models.AppBskyEmbedExternal.Main(
+                external=models.AppBskyEmbedExternal.External(
+                    uri=page_url,
+                    title=og["title"],
+                    description=og["description"],
+                    thumb=thumb,
+                )
+            )
+            text = f"{self.str} {page_url}" if include_link else self.str
+            client.send_post(text, embed=embed)
+        except requests.RequestException as err:
+            print(f"Can't fetch {page_url}: {err}")
+        except KeyError as err:
+            print(f"Credentials error: {err}")
+        except AtProtocolError as err:
+            print(f"Bluesky error: {err}")
 
     def download_post_text(self, post_api_url: str) -> None:
         """

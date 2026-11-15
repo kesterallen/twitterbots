@@ -120,7 +120,7 @@ class BlueskyReplyBot:
 
         # Use the shared credentials file and the same bot-name convention
         # as the other publishing scripts in blueskybot_lib.
-        handle, password = BotPost(botname="bluesky_replybot.py").bluesky_credentials
+        handle, password = BotPost(botname="replybot").bluesky_credentials
 
         self.client = Client()
         self.client.login(handle, password)

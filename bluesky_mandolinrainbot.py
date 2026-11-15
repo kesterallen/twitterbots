@@ -5,7 +5,7 @@ START_DATE = datetime.datetime(2026, 11, 13, 11, 11, 11)
 
 
 def main():
-    if BotPost.run_recently(seconds=86400, botname="bluesky_mandolinrain"):
+    if BotPost.run_recently(seconds=86400, botname="mandolinrain"):
         return
 
     today_post = parse_text_and_get_today_post("mandolin_rain.txt", START_DATE)

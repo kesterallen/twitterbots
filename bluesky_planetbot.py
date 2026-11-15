@@ -13,7 +13,6 @@ from box import Box
 import numpy as np
 from PIL import Image, ImageOps
 from scipy import optimize
-#from tweetbot_lib import BotTweet
 from blueskybot_lib import BotPost
 
 DEBUG = False
@@ -296,9 +295,8 @@ def main():
     assert planet_name in PLANETS
     planet = PLANETS[planet_name]
 
-    if BotPost.run_recently(seconds=86400, botname=planet.botname):
-        print("run too recently")
-        return
+    #if BotPost.run_recently(seconds=86400, botname=planet.botname):
+        #return
 
     box, url, image_fn = random_planet_image(planet)
     if DEBUG:
@@ -306,7 +304,7 @@ def main():
 
     post = BotPost(botname=planet.botname)
     post.set_text(f"{planet_name}, {box.pretty_str}, {url}")
-    alt_text = f"Planetary surface map of {planet_name}. {box.pretty_str}"
+    alt_text = f"Surface map of {planet_name}. {box.pretty_str}"
 
     if not DEBUG:
         post.publish_with_image(image_fn, alt_text=alt_text)
