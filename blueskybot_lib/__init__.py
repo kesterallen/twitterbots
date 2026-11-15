@@ -1,6 +1,4 @@
-"""Module to post to Bluesky for bots (ported from the Twitter/Mastodon version).
-
-Requires:  pip install atproto requests
+"""Module to post to Bluesky for bots 
 
 Credentials file (default ../bluesky_credentials.secret, relative to this file),
 one bot per line, whitespace separated:
@@ -10,9 +8,6 @@ one bot per line, whitespace separated:
 e.g.
 
     bluesky_gettysburg.py gettysburg.bsky.social xxxx-xxxx-xxxx-xxxx
-
-Use an *app password* (Settings -> Privacy and Security -> App Passwords),
-never your main account password.
 """
 
 import datetime
@@ -394,10 +389,6 @@ class BotPost:
         return self.str
 
 
-## Backwards-compatible aliases so existing bot scripts keep working
-#BotTweet = BotPost
-#MAX_TWEET_LEN = MAX_POST_LEN
-
 def run_recently(botname: str, seconds: int = 86400) -> bool:
     """
     True if botname ran within the last 'seconds' seconds. Otherwise,
@@ -418,9 +409,6 @@ def run_recently(botname: str, seconds: int = 86400) -> bool:
 def get_post_filename(filename: str) -> str:
     """Assume the text file is in ../txt/"""
     return os.path.join(os.path.dirname(__file__), f"../txt/{filename}")
-
-
-#get_tweet_filename = get_post_filename
 
 
 def postify_text(textfile, use_lines: bool = False) -> list:
@@ -454,9 +442,6 @@ def postify_text(textfile, use_lines: bool = False) -> list:
         return _posts_by_line(file_) if use_lines else _posts_by_word(file_)
 
 
-#tweetify_text = postify_text
-
-
 def get_today_index(num_posts: int, start_date: datetime.datetime) -> int:
     """Today's index into a list that is num_posts long, starting at start_date"""
     td_since_start = datetime.datetime.now() - start_date
@@ -468,15 +453,9 @@ def get_today_post(posts: list, start_date: datetime.datetime) -> BotPost:
     return posts[get_today_index(len(posts), start_date)]
 
 
-#get_today_tweet = get_today_post
-
-
 def parse_text_and_get_today_post(
     textfile: str, start_date: datetime.datetime, use_lines: bool = False
 ) -> BotPost:
     """Get today's post from a text file, starting at 'start_date'"""
     posts = postify_text(get_post_filename(textfile), use_lines)
     return get_today_post(posts, start_date)
-
-
-#parse_text_and_get_today_tweet = parse_text_and_get_today_post
