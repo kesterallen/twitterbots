@@ -20,7 +20,6 @@ from pathlib import Path
 
 import requests
 from atproto import Client
-from atproto.exceptions import AtProtocolError
 
 # Bluesky's limit is 300 graphemes. len() counts code points, which is always
 # >= the grapheme count, so this errs on the safe side.
@@ -143,8 +142,6 @@ class BotPost:
             print(f"Can't find file: {err}")
         except KeyError as err:
             print(f"Credentials error: {err}")
-        except AtProtocolError as err:
-            print(f"Bluesky error: {err}")
 
     def publish_with_image(self, image_fn: str, alt_text: str = "") -> None:
         """Publish to Bluesky with an image (Bluesky's image limit is ~1 MB)"""
@@ -159,8 +156,6 @@ class BotPost:
             print(f"Can't find file: {err}")
         except KeyError as err:
             print(f"Credentials error: {err}")
-        except AtProtocolError as err:
-            print(f"Bluesky error: {err}")
 
     def download_post_text(self, post_api_url: str) -> None:
         """

@@ -227,7 +227,7 @@ def _get_image(lat_box_side, planet, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT)
         },
     )
 
-    with urllib.request.urlopen(request) as response:
+    with urllib.request.urlopen(request, timeout=60) as response:
         import tempfile
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp.write(response.read())
@@ -237,29 +237,54 @@ def _get_image(lat_box_side, planet, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT)
     return (box, url, tmp_fn, image)
 
 
-def random_planet_image(planet, max_pct_black=0.5):
-    """Get a subimage without too many black pixels"""
+def random_planet_image(planet, max_pct_black=0.5, max_attempts=20):
+    """Get a subimage without too many black pixels.
+
+    Raises RuntimeError if no acceptable image is found within max_attempts.
+    """
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
 
     lat_box_side = random.uniform(*planet.lat_box_side_degrees)
 
-    image_too_dark = True
-    while image_too_dark:
+    for attempt in range(1, max_attempts + 1):
         box, url, tmp_fn, image = _get_image(lat_box_side, planet)
-        hist = image.histogram()
+        try:
+            hist = image.histogram()
+            total_pixels = sum(hist)
+            if not total_pixels:
+                raise ValueError("USGS returned an empty image")
 
-        num_black = hist[0]
-        pct_black = float(num_black) / float(sum(image.histogram()))
-        image_too_dark = pct_black > max_pct_black
+            pct_black = float(hist[0]) / float(total_pixels)
+            if pct_black > max_pct_black:
+                if DEBUG:
+                    print(
+                        f"Discarding dark image ({pct_black:.1%} black); "
+                        f"attempt {attempt}/{max_attempts}"
+                    )
+                continue
 
-    ignore = _ignore(hist)
-    image = ImageOps.autocontrast(image, ignore=ignore)
-    image_fn = f"{tmp_fn}.jpg"
-    image.save(image_fn)
+            ignore = _ignore(hist)
+            image = ImageOps.autocontrast(image, ignore=ignore)
+            image_fn = f"{tmp_fn}.jpg"
+            image.save(image_fn)
 
-    if DEBUG:
-        print(box.pretty_str, url)
+            if DEBUG:
+                print(box.pretty_str, url)
 
-    return box, url, image_fn
+            return box, url, image_fn
+        finally:
+            # _get_image creates a temporary source image for each attempt.
+            try:
+                os.unlink(tmp_fn)
+            except FileNotFoundError:
+                pass
+
+    raise RuntimeError(
+        f"Could not find a sufficiently bright {planet.name} image "
+        f"after {max_attempts} attempts (maximum black-pixel fraction "
+        f"{max_pct_black:.0%})."
+    )
 
 
 def main():

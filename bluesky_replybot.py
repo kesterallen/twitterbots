@@ -162,8 +162,17 @@ class BlueskyReplyBot:
         Jetstream cursors are inclusive, so save seq + 1 to avoid replaying
         the event that was just processed.
         """
-        self.cursor = seq + 1
-        self.cursor_file.write_text(str(self.cursor), encoding="utf-8")
+        next_cursor = seq + 1
+        temp_file = self.cursor_file.with_name(self.cursor_file.name + ".tmp")
+        try:
+            temp_file.write_text(str(next_cursor), encoding="utf-8")
+            temp_file.replace(self.cursor_file)
+        finally:
+            try:
+                temp_file.unlink()
+            except FileNotFoundError:
+                pass
+        self.cursor = next_cursor
 
     def _matches(self, text):
         text = text.casefold()
@@ -188,19 +197,10 @@ class BlueskyReplyBot:
             return
 
         reply_ref = get_reply_refs(record, uri, cid)
-        try:
-            self.client.send_post(text=reply, reply_to=reply_ref)
-        except Exception as exc:
-            # As in the Twitter version, try a different response once if
-            # the service rejects the first one (for example, as a duplicate).
-            alternatives = [item for item in self.replies if item != reply]
-            if not alternatives:
-                raise
-            replacement = random.choice(alternatives)
-            print(f"{now()} Reply failed ({exc}); retrying with another reply")
-            time.sleep(self.args.sleep_duplicate)
-            print(f"{now()} {replacement} -> {url}")
-            self.client.send_post(text=replacement, reply_to=reply_ref)
+        # Do not retry with a different message: if the server accepted the
+        # first request but its response was lost, that could create a second
+        # reply. Propagate the error so the event can be replayed on reconnect.
+        self.client.send_post(text=reply, reply_to=reply_ref)
 
     def _handle_frame(self, frame):
         """Process one Jetstream JSON frame."""
@@ -211,28 +211,25 @@ class BlueskyReplyBot:
             return
 
         seq = event.get("seq")
-        try:
-            if (
-                event.get("operation") != "create"
-                or event.get("collection") != "app.bsky.feed.post"
-            ):
-                return
-
+        if (
+            event.get("operation") == "create"
+            and event.get("collection") == "app.bsky.feed.post"
+        ):
             record = event.get("record") or {}
             text = record.get("text", "")
             did = event.get("did")
 
             # Do not respond to the bot's own posts.
-            if not text or did == self.bot_did:
-                return
-
-            if self._matches(text):
+            if text and did != self.bot_did and self._matches(text):
+                # If handling fails, leave the cursor unchanged so Jetstream
+                # can replay this event after the bot reconnects.
                 self._send_reply(event, record)
-                # Preserve the original bot's one-reply-at-a-time behavior.
                 time.sleep(self.args.sleep_tweet)
-        finally:
-            if seq is not None:
-                self._save_cursor(seq)
+
+        # Ignored events are safe to skip; matching events reach here only
+        # after their reply has completed successfully.
+        if seq is not None:
+            self._save_cursor(seq)
 
     def _make_url(self, endpoint):
         params = {
