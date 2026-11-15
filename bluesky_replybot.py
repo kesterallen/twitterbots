@@ -3,22 +3,7 @@
 Bluesky Jetstream reply bot.
 
 Monitors public Bluesky posts for configured phrases and replies with a
-random response. This is the Jetstream/AT Protocol equivalent of
-twitter_replybot.py.
-
-Install:
-    python -m pip install atproto websocket-client
-
-Configure credentials in ../bluesky_credentials.secret, using one line:
-    bluesky_replybot.py yourbot.bsky.social xxxx-xxxx-xxxx-xxxx
-
-The credentials file uses the same format as the other Bluesky bots.
-
-Run in dry-run mode first:
-    python bluesky_replybot.py --sendtweet false
-
-Then enable replies:
-    python bluesky_replybot.py
+random response. Uses the Jetstream/AT Protocol.
 """
 
 import argparse
