@@ -459,3 +459,12 @@ def parse_text_and_get_today_post(
     """Get today's post from a text file, starting at 'start_date'"""
     posts = postify_text(get_post_filename(textfile), use_lines)
     return get_today_post(posts, start_date)
+
+
+def post_for_today(botname: str, textfile: str, start_date: datetime.datetime, too_recent_seconds: int = 86400) -> None:
+    """ Helper function to do a (default) daily post from a file to a bluesky account """
+    if run_recently(botname, too_recent_seconds):
+        return
+
+    today_post = parse_text_and_get_today_post(textfile, start_date)
+    today_post.publish()

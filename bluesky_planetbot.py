@@ -294,6 +294,7 @@ def main():
     assert planet_name in PLANETS
     planet = PLANETS[planet_name]
 
+    # Don't run if this has run within the last ten minutes:
     if run_recently(planet.botname, seconds=600):
         return
 
@@ -310,7 +311,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# For Venus:
-# https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/venus/venus_simp_cyl.map&SERVICE=WMS&VERSION=1.1.1&SRS=EPSG:4326&STYLES=&REQUEST=GetMap&FORMAT=image%2Fjpeg&LAYERS=MAGELLAN&BBOX=90,-45,215.707872211,5&WIDTH=1920&HEIGHT=1080
-# match!

@@ -1,16 +1,6 @@
 import datetime
-from blueskybot_lib import parse_text_and_get_today_post, run_recently
-
-START_DATE = datetime.datetime(2026, 11, 13, 11, 11, 11)
-
-
-def main():
-    if run_recently("mandolinrain"):
-        return
-
-    today_post = parse_text_and_get_today_post("mandolin_rain.txt", START_DATE)
-    today_post.publish()
-
+from blueskybot_lib import post_for_today
 
 if __name__ == "__main__":
-    main()
+    start_date = datetime.datetime(2026, 11, 13, 11, 11, 11)
+    post_for_today("mandolinrain", "mandolin_rain.txt", start_date)

@@ -2,14 +2,14 @@
 
 from box import Box
 import requests
-from blueskybot_lib import BotPost
+from blueskybot_lib import BotPost, run_recently
 
 PREFIX = "https://readtheplaque.com"
 URL = f"{PREFIX}/api/plaques/random"
 
 
 def main():
-    if BotPost.run_recently("readtheplaque"):
+    if run_recently("readtheplaque"):
         return
 
     resp = requests.get(URL)
